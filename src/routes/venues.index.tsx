@@ -9,6 +9,7 @@ import { EmptyState, SkeletonGrid } from "@/components/jp/states";
 import {
   VenueFilters,
   defaultFilters,
+  computeFilterCeilings,
   type VenueFilterState,
 } from "@/components/jp/VenueFilters";
 import { fetchVenues, type VenueDetail } from "@/data/venues";
@@ -50,6 +51,7 @@ function VenueDiscovery() {
   const [showFilters, setShowFilters] = useState(false);
   const [allVenues, setAllVenues] = useState<VenueDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [ceilings, setCeilings] = useState(() => computeFilterCeilings([]));
 
   useEffect(() => {
     let active = true;
@@ -58,6 +60,18 @@ function VenueDiscovery() {
       if (!active) return;
       setAllVenues(venues);
       setIsLoading(false);
+      // Recompute the filter ceilings from what actually came back, and
+      // reset the (still-untouched) default filters to match — otherwise a
+      // venue priced or located beyond the old 1500/15 fallback would be
+      // fetched successfully but filtered out of view with no way to reach
+      // it via the sliders.
+      const nextCeilings = computeFilterCeilings(venues);
+      setCeilings(nextCeilings);
+      setFilters((prev) =>
+        prev.maxPrice === defaultFilters.maxPrice && prev.maxDistance === defaultFilters.maxDistance
+          ? { ...prev, maxPrice: nextCeilings.maxPrice, maxDistance: nextCeilings.maxDistance }
+          : prev,
+      );
     });
     return () => {
       active = false;
@@ -113,7 +127,12 @@ function VenueDiscovery() {
         <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[260px_1fr]">
           <div className="hidden lg:block">
             <div className="sticky top-20">
-              <VenueFilters value={filters} onChange={setFilters} />
+              <VenueFilters
+                value={filters}
+                onChange={setFilters}
+                priceCeiling={ceilings.maxPrice}
+                distanceCeiling={ceilings.maxDistance}
+              />
             </div>
           </div>
 
@@ -123,6 +142,8 @@ function VenueDiscovery() {
                 value={filters}
                 onChange={setFilters}
                 onClose={() => setShowFilters(false)}
+                priceCeiling={ceilings.maxPrice}
+                distanceCeiling={ceilings.maxDistance}
               />
             </div>
           ) : null}

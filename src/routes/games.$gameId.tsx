@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { ArrowLeft, CalendarX2, Check, Clock, MapPin, MessageCircle, Users } from "lucide-react";
 import { PageShell } from "@/components/jp/PageShell";
 import { Button } from "@/components/jp/Button";
@@ -42,8 +43,16 @@ function GameDetailPage() {
   const { new: justPublished } = Route.useSearch();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { getGame, joinedGameIds, requestedGameIds, joinGame, leaveGame, requestJoin, cancelGame, loading } =
-    useCommunity();
+  const {
+    getGame,
+    joinedGameIds,
+    requestedGameIds,
+    joinGame,
+    leaveGame,
+    requestJoin,
+    cancelGame,
+    loading,
+  } = useCommunity();
 
   const [messageOpen, setMessageOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -71,13 +80,42 @@ function GameDetailPage() {
   const price = perHead(game);
   const cancelled = game.status === "cancelled";
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!isAuthenticated) {
       void navigate({ to: "/auth", search: { redirect: `/games/${game.id}` } });
       return;
     }
-    if (game.joinPolicy === "approval") requestJoin(game.id);
-    else joinGame(game.id);
+    try {
+      if (game.joinPolicy === "approval") {
+        await requestJoin(game.id);
+        toast.success("Request sent to the host");
+      } else {
+        await joinGame(game.id);
+        toast.success("You're in! Spot confirmed.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't join this game. Try again.");
+    }
+  };
+
+  const handleLeave = async () => {
+    try {
+      await leaveGame(game.id);
+      toast.success("You've left the game");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't leave this game. Try again.");
+    }
+  };
+
+  const handleCancel = async () => {
+    try {
+      await cancelGame(game.id);
+      toast.success("Game cancelled");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't cancel this game. Try again.");
+    } finally {
+      setConfirmCancel(false);
+    }
   };
 
   return (
@@ -218,7 +256,7 @@ function GameDetailPage() {
               <Button
                 variant="outline"
                 className="w-full text-destructive hover:bg-destructive/10"
-                onClick={() => leaveGame(game.id)}
+                onClick={handleLeave}
               >
                 Leave game
               </Button>
@@ -298,10 +336,7 @@ function GameDetailPage() {
               </Button>
               <Button
                 className="flex-1 bg-destructive text-destructive-foreground hover:brightness-110"
-                onClick={() => {
-                  cancelGame(game.id);
-                  setConfirmCancel(false);
-                }}
+                onClick={handleCancel}
               >
                 Cancel game
               </Button>

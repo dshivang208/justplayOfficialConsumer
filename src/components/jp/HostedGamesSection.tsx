@@ -1,12 +1,44 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { ArrowRight, Users } from "lucide-react";
-import { hostedGames } from "@/data/landing";
+import { useCommunity } from "@/lib/community";
+import { useAuth } from "@/lib/auth";
 import { Section, SectionHeading } from "./SectionHeading";
-import { HostedGameCard } from "./HostedGameCard";
+import { GameCard } from "./GameCard";
 import { Button } from "./Button";
 import { SkeletonGrid, EmptyState } from "./states";
 
-export function HostedGamesSection({ isLoading = false }: { isLoading?: boolean }) {
+export function HostedGamesSection() {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const { games, joinedGameIds, requestedGameIds, joinGame, requestJoin, loading, hydrated } =
+    useCommunity();
+
+  // Real, live hosted games only — soonest first, capped to a homepage
+  // preview. No demo/mock rows here; "See all games" links to /games for
+  // the full, filterable list.
+  const upcoming = games.filter((g) => g.status === "active").slice(0, 4);
+
+  const isLoading = loading && !hydrated;
+
+  const handleJoin = async (gameId: string, approvalNeeded: boolean) => {
+    if (!isAuthenticated) {
+      void navigate({ to: "/auth", search: { redirect: "/" } });
+      return;
+    }
+    try {
+      if (approvalNeeded) {
+        await requestJoin(gameId);
+        toast.success("Request sent to the host");
+      } else {
+        await joinGame(gameId);
+        toast.success("You're in! Spot confirmed.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't join this game. Try again.");
+    }
+  };
+
   return (
     <Section id="games" className="bg-surface/30">
       <SectionHeading
@@ -24,7 +56,7 @@ export function HostedGamesSection({ isLoading = false }: { isLoading?: boolean 
 
       {isLoading ? (
         <SkeletonGrid count={4} className="lg:grid-cols-2 xl:grid-cols-2" />
-      ) : hostedGames.length === 0 ? (
+      ) : upcoming.length === 0 ? (
         <EmptyState
           icon={<Users className="h-8 w-8" />}
           title="No games nearby right now"
@@ -37,8 +69,14 @@ export function HostedGamesSection({ isLoading = false }: { isLoading?: boolean 
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          {hostedGames.map((g) => (
-            <HostedGameCard key={g.id} game={g} />
+          {upcoming.map((g) => (
+            <GameCard
+              key={g.id}
+              game={g}
+              joined={joinedGameIds.includes(g.id)}
+              requested={requestedGameIds.includes(g.id)}
+              onJoin={() => handleJoin(g.id, g.joinPolicy === "approval")}
+            />
           ))}
         </div>
       )}

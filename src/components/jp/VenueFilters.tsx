@@ -11,6 +11,11 @@ export type VenueFilterState = {
   amenities: Amenity[];
 };
 
+// NOTE: these are only the *initial* fallback bounds shown before real venue
+// data has loaded. venues/index.tsx recomputes maxPrice/maxDistance from the
+// actual fetched venues (rounded up) once they arrive, so a venue priced or
+// located beyond these numbers is never silently hidden — see
+// computeFilterCeilings() below and its use in VenueDiscovery.
 export const defaultFilters: VenueFilterState = {
   sport: "",
   area: "",
@@ -18,6 +23,19 @@ export const defaultFilters: VenueFilterState = {
   maxDistance: 15,
   amenities: [],
 };
+
+/** Derives safe slider ceilings from the real dataset so venues priced or
+ *  located beyond the old hardcoded 1500/15 defaults are never invisible. */
+export function computeFilterCeilings(venues: { pricePerHour: number; distanceKm: number }[]) {
+  const priceMax = venues.reduce((m, v) => Math.max(m, v.pricePerHour), 0);
+  const distanceMax = venues.reduce((m, v) => Math.max(m, v.distanceKm), 0);
+  return {
+    // Round up to the nearest 100/5 and always keep at least the old
+    // baseline so the slider never feels cramped on a small dataset.
+    maxPrice: Math.max(1500, Math.ceil((priceMax || 0) / 100) * 100),
+    maxDistance: Math.max(15, Math.ceil((distanceMax || 0) / 5) * 5),
+  };
+}
 
 function Chip({
   active,
@@ -58,10 +76,17 @@ export function VenueFilters({
   value,
   onChange,
   onClose,
+  priceCeiling = 1500,
+  distanceCeiling = 15,
 }: {
   value: VenueFilterState;
   onChange: (next: VenueFilterState) => void;
   onClose?: () => void;
+  /** Slider upper bound for price — pass computeFilterCeilings(venues).maxPrice
+   *  so a venue priced above the old 1500 default is still reachable. */
+  priceCeiling?: number;
+  /** Slider upper bound for distance — same idea, for km. */
+  distanceCeiling?: number;
 }) {
   const set = <K extends keyof VenueFilterState>(key: K, v: VenueFilterState[K]) =>
     onChange({ ...value, [key]: v });
@@ -126,7 +151,7 @@ export function VenueFilters({
         <input
           type="range"
           min={300}
-          max={1500}
+          max={priceCeiling}
           step={50}
           value={value.maxPrice}
           onChange={(e) => set("maxPrice", Number(e.target.value))}
@@ -135,7 +160,7 @@ export function VenueFilters({
         />
         <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
           <span>₹300</span>
-          <span>₹1500+</span>
+          <span>₹{priceCeiling}+</span>
         </div>
       </Group>
 
@@ -143,7 +168,7 @@ export function VenueFilters({
         <input
           type="range"
           min={1}
-          max={15}
+          max={distanceCeiling}
           step={1}
           value={value.maxDistance}
           onChange={(e) => set("maxDistance", Number(e.target.value))}
@@ -152,7 +177,7 @@ export function VenueFilters({
         />
         <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
           <span>1 km</span>
-          <span>15 km</span>
+          <span>{distanceCeiling} km</span>
         </div>
       </Group>
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { Users } from "lucide-react";
 import { PageShell, PageHeader, Chip } from "@/components/jp/PageShell";
 import { Button } from "@/components/jp/Button";
@@ -70,13 +71,22 @@ function GamesPage() {
     });
   }, [tab, active, myGames, joinedGameIds, sport, skillLevel, dateFilter]);
 
-  const handleJoin = (gameId: string, approvalNeeded: boolean) => {
+  const handleJoin = async (gameId: string, approvalNeeded: boolean) => {
     if (!isAuthenticated) {
       void navigate({ to: "/auth", search: { redirect: "/games" } });
       return;
     }
-    if (approvalNeeded) requestJoin(gameId);
-    else joinGame(gameId);
+    try {
+      if (approvalNeeded) {
+        await requestJoin(gameId);
+        toast.success("Request sent to the host");
+      } else {
+        await joinGame(gameId);
+        toast.success("You're in! Spot confirmed.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't join this game. Try again.");
+    }
   };
 
   return (
