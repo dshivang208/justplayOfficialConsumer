@@ -18,14 +18,35 @@ import {
 } from "react";
 import {
   initialsOf,
+  fallbackGroupImage,
+  fallbackEventImage,
   type CommunityEventDetail,
   type Game,
+  type GameMessage,
   type Group,
+  type GroupMessage,
   type Player,
   type SkillLevel,
 } from "@/data/community";
 import { useAuth } from "./auth";
 import { supabase } from "./supabaseClient";
+import groupFootball from "@/assets/group-football.jpg";
+import groupCricket from "@/assets/group-cricket.jpg";
+import groupBadminton from "@/assets/group-badminton.jpg";
+import eventTournament from "@/assets/event-tournament.jpg";
+
+const groupImagePool = {
+  football: groupFootball,
+  cricket: groupCricket,
+  badminton: groupBadminton,
+};
+
+const eventImagePool = {
+  tournament: eventTournament,
+  football: groupFootball,
+  cricket: groupCricket,
+  badminton: groupBadminton,
+};
 
 type CommunityContextValue = {
   games: Game[];
@@ -45,8 +66,18 @@ type CommunityContextValue = {
   joinGame: (id: string) => Promise<void>;
   leaveGame: (id: string) => Promise<void>;
   requestJoin: (id: string) => Promise<void>;
-  joinGroup: (id: string) => Promise<void>;
+  approveRequest: (gameId: string, userId: string) => Promise<void>;
+  rejectRequest: (gameId: string, userId: string) => Promise<void>;
+  removeParticipant: (gameId: string, userId: string) => Promise<void>;
+  updateGameDetails: (gameId: string, patch: UpdateGameInput) => Promise<void>;
+  fetchGameMessages: (gameId: string) => Promise<GameMessage[]>;
+  sendGameMessage: (gameId: string, message: string) => Promise<GameMessage>;
+  joinGroup: (id: string) => Promise<"joined" | "pending">;
   leaveGroup: (id: string) => Promise<void>;
+  approveGroupJoinRequest: (groupId: string, userId: string) => Promise<void>;
+  rejectGroupJoinRequest: (groupId: string, userId: string) => Promise<void>;
+  fetchGroupMessages: (groupId: string) => Promise<GroupMessage[]>;
+  sendGroupMessage: (groupId: string, message: string) => Promise<GroupMessage>;
   createGroup: (input: CreateGroupInput) => Promise<Group>;
   registerEvent: (id: string) => Promise<void>;
   unregisterEvent: (id: string) => Promise<void>;
@@ -71,6 +102,15 @@ export type HostGameInput = {
   description: string;
   joinPolicy: Game["joinPolicy"];
 };
+
+export type UpdateGameInput = Partial<{
+  dateISO: string;
+  startHour: number;
+  endHour: number;
+  spotsTotal: number;
+  skillLevel: Game["skillLevel"];
+  description: string;
+}>;
 
 export type CreateGroupInput = {
   name: string;
@@ -107,12 +147,21 @@ function parseHourRange(label: string): { startHour: number; endHour: number } {
   return { startHour: parse(startPart), endHour: parse(endPart) };
 }
 
-type ProfileMap = Record<string, { name: string; initials: string }>;
+type ProfileMap = Record<string, { name: string; initials: string; photoUrl: string | null }>;
 
 async function fetchProfiles(ids: string[]): Promise<ProfileMap> {
   const unique = Array.from(new Set(ids)).filter(Boolean);
   if (unique.length === 0) return {};
-  const { data, error } = await supabase.from("public_profiles").select("id, name").in("id", unique);
+  // public_profiles is a view exposing ONLY id, name, profile_photo_url —
+  // it has no phone column at all, so no query against it can ever return
+  // a phone number for anyone, including other users. Never query
+  // public.users directly for another user's info; RLS blocks that to a
+  // single row anyway ("users select own"), but this view is the actual
+  // mechanism the rest of the app relies on for that guarantee.
+  const { data, error } = await supabase
+    .from("public_profiles")
+    .select("id, name, profile_photo_url")
+    .in("id", unique);
   if (error) {
     console.error("fetchProfiles failed:", error.message);
     return {};
@@ -120,7 +169,7 @@ async function fetchProfiles(ids: string[]): Promise<ProfileMap> {
   const map: ProfileMap = {};
   for (const row of data ?? []) {
     const name = row.name || "Player";
-    map[row.id] = { name, initials: initialsOf(name) };
+    map[row.id] = { name, initials: initialsOf(name), photoUrl: row.profile_photo_url };
   }
   return map;
 }
@@ -151,9 +200,11 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     const { data: participantRows } = gameIds.length
       ? await supabase
           .from("game_participants")
-          .select("game_id, user_id, status")
+          .select("game_id, user_id, status, joined_at")
           .in("game_id", gameIds)
-      : { data: [] as { game_id: string; user_id: string; status: string }[] };
+      : {
+          data: [] as { game_id: string; user_id: string; status: string; joined_at: string }[],
+        };
 
     const profileIds = [
       ...(rows ?? []).map((r) => r.host_user_id),
@@ -172,6 +223,16 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
           id: p.user_id,
           name: profiles[p.user_id]?.name ?? "Player",
           initials: profiles[p.user_id]?.initials ?? "PL",
+          joinedAt: p.joined_at,
+        }));
+
+      const pendingRequests = (participantRows ?? [])
+        .filter((p) => p.game_id === row.id && p.status === "requested")
+        .map((p): Player => ({
+          id: p.user_id,
+          name: profiles[p.user_id]?.name ?? "Player",
+          initials: profiles[p.user_id]?.initials ?? "PL",
+          joinedAt: p.joined_at,
         }));
 
       if (user) {
@@ -196,6 +257,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
         hostInitials: profiles[row.host_user_id]?.initials ?? "HO",
         spotsTotal: row.total_spots,
         players: joinedPlayers,
+        pendingRequests,
         skillLevel: row.skill_level as SkillLevel,
         costMode: row.cost_type,
         totalCost: row.total_cost ?? 0,
@@ -223,10 +285,29 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     }
     const groupIds = (rows ?? []).map((r) => r.id);
     const { data: memberRows } = groupIds.length
-      ? await supabase.from("group_members").select("group_id, user_id").in("group_id", groupIds)
-      : { data: [] as { group_id: string; user_id: string }[] };
+      ? await supabase
+          .from("group_members")
+          .select("group_id, user_id, role, joined_at")
+          .in("group_id", groupIds)
+      : {
+          data: [] as { group_id: string; user_id: string; role: string; joined_at: string }[],
+        };
 
-    const profiles = await fetchProfiles((memberRows ?? []).map((m) => m.user_id));
+    // RLS on group_join_requests only returns a user's own request, or —
+    // for a group they admin — every request for that group. So this
+    // select naturally comes back scoped correctly per viewer with no
+    // extra filtering needed here.
+    const { data: requestRows } = groupIds.length
+      ? await supabase
+          .from("group_join_requests")
+          .select("group_id, user_id, requested_at")
+          .in("group_id", groupIds)
+      : { data: [] as { group_id: string; user_id: string; requested_at: string }[] };
+
+    const profiles = await fetchProfiles([
+      ...(memberRows ?? []).map((m) => m.user_id),
+      ...(requestRows ?? []).map((r) => r.user_id),
+    ]);
 
     const mine: string[] = [];
 
@@ -238,23 +319,38 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
           id: m.user_id,
           name: profiles[m.user_id]?.name ?? "Member",
           initials: profiles[m.user_id]?.initials ?? "ME",
+          photoUrl: profiles[m.user_id]?.photoUrl ?? null,
+          joinedAt: m.joined_at,
         }));
 
-      if (user && (memberRows ?? []).some((m) => m.group_id === row.id && m.user_id === user.id)) {
-        mine.push(row.id);
-      }
+      const pendingRequests: Player[] = (requestRows ?? [])
+        .filter((r) => r.group_id === row.id)
+        .map((r) => ({
+          id: r.user_id,
+          name: profiles[r.user_id]?.name ?? "Player",
+          initials: profiles[r.user_id]?.initials ?? "PL",
+          photoUrl: profiles[r.user_id]?.photoUrl ?? null,
+          joinedAt: r.requested_at,
+        }));
+
+      const myMembership = user
+        ? (memberRows ?? []).find((m) => m.group_id === row.id && m.user_id === user.id)
+        : undefined;
+      if (myMembership) mine.push(row.id);
 
       return {
         id: row.id,
         name: row.name,
         sport: row.sport,
         description: row.description ?? "",
-        image: row.cover_photo_url ?? "",
+        image: row.cover_photo_url || fallbackGroupImage(row.sport, row.id, groupImagePool),
         privacy: row.privacy === "private" ? "Private" : "Public",
         area: row.area ?? "",
         memberCount: row.member_count,
         members,
+        pendingRequests,
         isMine: user ? row.created_by === user.id : false,
+        myRole: myMembership ? (myMembership.role === "admin" ? "admin" : "member") : null,
       };
     });
 
@@ -273,7 +369,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     }
 
     const { data: regRows } = user
-      ? await supabase.from("event_registrations").select("event_id")
+      ? await supabase.from("event_registrations").select("event_id").eq("user_id", user.id)
       : { data: [] as { event_id: string }[] };
 
     const mapped: CommunityEventDetail[] = (rows ?? []).map((row: any) => {
@@ -287,7 +383,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
         timeLabel: row.time_label ?? "",
         venueName: row.venues?.name ?? "TBA",
         area: row.venues?.area ?? "",
-        image: row.image_url ?? "",
+        image: row.image_url || fallbackEventImage(row.sport, row.id, eventImagePool),
         description: row.description ?? "",
         organizerName: organizer.name ?? "JustPlay",
         organizerInitials: initialsOf(organizer.name ?? "JustPlay"),
@@ -316,34 +412,42 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // Live, n-to-n sync: when ANY player joins/leaves/gets removed, or a host
+  // cancels a game, every other browser currently looking at that game or
+  // the games list picks it up automatically — no manual refresh needed.
+  // Requires `hosted_games` and `game_participants` to be added to the
+  // `supabase_realtime` publication (see the realtime migration).
+  useEffect(() => {
+    const channel = supabase
+      .channel("hosted-games-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "hosted_games" }, () => {
+        void loadGames();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "game_participants" }, () => {
+        void loadGames();
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [loadGames]);
+
   const hostGame = useCallback(
     async (input: HostGameInput) => {
-      const { data, error } = await supabase
-        .from("hosted_games")
-        .insert({
-          host_user_id: user!.id,
-          venue_id: input.venueId,
-          sport: input.sport,
-          date: input.dateISO,
-          time: timeLabel(input.startHour, input.endHour),
-          total_spots: input.spotsTotal,
-          spots_filled: 1,
-          skill_level: input.skillLevel,
-          cost_type: input.costMode,
-          total_cost: input.totalCost,
-          description: input.description,
-          join_policy: input.joinPolicy,
-        })
-        .select()
-        .single();
-      if (error) throw new Error(error.message);
-
-      // Host counts as the first joined player.
-      await supabase.from("game_participants").insert({
-        game_id: data.id,
-        user_id: user!.id,
-        status: "joined",
+      const { data, error } = await supabase.rpc("create_hosted_game", {
+        p_venue_id: input.venueId,
+        p_sport: input.sport,
+        p_date: input.dateISO,
+        p_time: timeLabel(input.startHour, input.endHour),
+        p_total_spots: input.spotsTotal,
+        p_skill_level: input.skillLevel,
+        p_cost_type: input.costMode,
+        p_total_cost: input.totalCost,
+        p_description: input.description,
+        p_join_policy: input.joinPolicy,
       });
+      if (error) throw new Error(error.message);
 
       await loadGames();
 
@@ -361,6 +465,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
         hostInitials: initialsOf(user!.name || "Host"),
         spotsTotal: input.spotsTotal,
         players: [{ id: user!.id, name: user!.name, initials: initialsOf(user!.name || "Host") }],
+        pendingRequests: [],
         skillLevel: input.skillLevel,
         costMode: input.costMode,
         totalCost: input.totalCost,
@@ -404,11 +509,109 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
   // the game's join_policy — both call sites use the same RPC.
   const requestJoin = joinGame;
 
+  const approveRequest = useCallback(
+    async (gameId: string, userId: string) => {
+      const { error } = await supabase.rpc("approve_join_request", {
+        p_game_id: gameId,
+        p_user_id: userId,
+      });
+      if (error) throw new Error(error.message);
+      await loadGames();
+    },
+    [loadGames],
+  );
+
+  const rejectRequest = useCallback(
+    async (gameId: string, userId: string) => {
+      const { error } = await supabase.rpc("reject_join_request", {
+        p_game_id: gameId,
+        p_user_id: userId,
+      });
+      if (error) throw new Error(error.message);
+      await loadGames();
+    },
+    [loadGames],
+  );
+
+  const removeParticipant = useCallback(
+    async (gameId: string, userId: string) => {
+      const { error } = await supabase.rpc("remove_game_participant", {
+        p_game_id: gameId,
+        p_user_id: userId,
+      });
+      if (error) throw new Error(error.message);
+      await loadGames();
+    },
+    [loadGames],
+  );
+
+  const updateGameDetails = useCallback(
+    async (gameId: string, patch: UpdateGameInput) => {
+      const dbPatch: Record<string, unknown> = {};
+      if (patch.dateISO !== undefined) dbPatch["date"] = patch.dateISO;
+      if (patch.startHour !== undefined && patch.endHour !== undefined) {
+        dbPatch["time"] = timeLabel(patch.startHour, patch.endHour);
+      }
+      if (patch.spotsTotal !== undefined) dbPatch["total_spots"] = patch.spotsTotal;
+      if (patch.skillLevel !== undefined) dbPatch["skill_level"] = patch.skillLevel;
+      if (patch.description !== undefined) dbPatch["description"] = patch.description;
+
+      // RLS ("hosted_games update own fields") + the column-scoped grant
+      // already restrict this to the game's own host — see
+      // 20260829010000_phase_cdef_backend.sql.
+      const { error } = await supabase.from("hosted_games").update(dbPatch).eq("id", gameId);
+      if (error) throw new Error(error.message);
+      await loadGames();
+    },
+    [loadGames],
+  );
+
+  const fetchGameMessages = useCallback(async (gameId: string): Promise<GameMessage[]> => {
+    const { data, error } = await supabase
+      .from("game_messages")
+      .select("id, game_id, sender_id, message, created_at")
+      .eq("game_id", gameId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+
+    const senderIds = [...new Set((data ?? []).map((r) => r.sender_id))];
+    const profiles = await fetchProfiles(senderIds);
+
+    return (data ?? []).map((r) => ({
+      id: r.id,
+      gameId: r.game_id,
+      senderId: r.sender_id,
+      senderName: profiles[r.sender_id]?.name ?? "Host",
+      message: r.message,
+      createdAt: r.created_at,
+    }));
+  }, []);
+
+  const sendGameMessage = useCallback(
+    async (gameId: string, message: string): Promise<GameMessage> => {
+      const { data, error } = await supabase.rpc("send_game_message", {
+        p_game_id: gameId,
+        p_message: message,
+      });
+      if (error) throw new Error(error.message);
+      return {
+        id: data.id,
+        gameId: data.game_id,
+        senderId: data.sender_id,
+        senderName: user?.name ?? "Host",
+        message: data.message,
+        createdAt: data.created_at,
+      };
+    },
+    [user],
+  );
+
   const joinGroup = useCallback(
-    async (id: string) => {
-      const { error } = await supabase.rpc("join_group", { p_group_id: id });
+    async (id: string): Promise<"joined" | "pending"> => {
+      const { data, error } = await supabase.rpc("join_group", { p_group_id: id });
       if (error) throw new Error(error.message);
       await loadGroups();
+      return (data?.status as "joined" | "pending") ?? "joined";
     },
     [loadGroups],
   );
@@ -422,29 +625,83 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     [loadGroups],
   );
 
+  const approveGroupJoinRequest = useCallback(
+    async (groupId: string, userId: string) => {
+      const { error } = await supabase.rpc("approve_group_join_request", {
+        p_group_id: groupId,
+        p_user_id: userId,
+      });
+      if (error) throw new Error(error.message);
+      await loadGroups();
+    },
+    [loadGroups],
+  );
+
+  const rejectGroupJoinRequest = useCallback(
+    async (groupId: string, userId: string) => {
+      const { error } = await supabase.rpc("reject_group_join_request", {
+        p_group_id: groupId,
+        p_user_id: userId,
+      });
+      if (error) throw new Error(error.message);
+      await loadGroups();
+    },
+    [loadGroups],
+  );
+
+  const fetchGroupMessages = useCallback(async (groupId: string): Promise<GroupMessage[]> => {
+    const { data, error } = await supabase
+      .from("group_messages")
+      .select("id, group_id, sender_user_id, message_text, created_at")
+      .eq("group_id", groupId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+
+    const senderIds = [...new Set((data ?? []).map((r) => r.sender_user_id))];
+    const profiles = await fetchProfiles(senderIds);
+
+    return (data ?? []).map((r) => ({
+      id: r.id,
+      groupId: r.group_id,
+      senderId: r.sender_user_id,
+      senderName: profiles[r.sender_user_id]?.name ?? "Member",
+      senderPhotoUrl: profiles[r.sender_user_id]?.photoUrl ?? null,
+      message: r.message_text,
+      createdAt: r.created_at,
+    }));
+  }, []);
+
+  const sendGroupMessage = useCallback(
+    async (groupId: string, message: string): Promise<GroupMessage> => {
+      const { data, error } = await supabase.rpc("send_group_message", {
+        p_group_id: groupId,
+        p_message: message,
+      });
+      if (error) throw new Error(error.message);
+      return {
+        id: data.id,
+        groupId: data.group_id,
+        senderId: data.sender_user_id,
+        senderName: user?.name ?? "Member",
+        senderPhotoUrl: user?.avatar ?? null,
+        message: data.message_text,
+        createdAt: data.created_at,
+      };
+    },
+    [user],
+  );
+
   const createGroup = useCallback(
     async (input: CreateGroupInput) => {
-      const { data, error } = await supabase
-        .from("groups")
-        .insert({
-          name: input.name,
-          sport: input.sport,
-          description: input.description,
-          cover_photo_url: input.image,
-          privacy: input.privacy.toLowerCase(),
-          area: input.area,
-          created_by: user!.id,
-          member_count: 1,
-        })
-        .select()
-        .single();
-      if (error) throw new Error(error.message);
-
-      await supabase.from("group_members").insert({
-        group_id: data.id,
-        user_id: user!.id,
-        role: "admin",
+      const { data, error } = await supabase.rpc("create_group", {
+        p_name: input.name,
+        p_sport: input.sport,
+        p_description: input.description,
+        p_area: input.area,
+        p_privacy: input.privacy.toLowerCase(),
+        p_cover_photo_url: input.image,
       });
+      if (error) throw new Error(error.message);
 
       await loadGroups();
 
@@ -501,8 +758,18 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       joinGame,
       leaveGame,
       requestJoin,
+      approveRequest,
+      rejectRequest,
+      removeParticipant,
+      updateGameDetails,
+      fetchGameMessages,
+      sendGameMessage,
       joinGroup,
       leaveGroup,
+      approveGroupJoinRequest,
+      rejectGroupJoinRequest,
+      fetchGroupMessages,
+      sendGroupMessage,
       createGroup,
       registerEvent,
       unregisterEvent,
@@ -527,8 +794,18 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       joinGame,
       leaveGame,
       requestJoin,
+      approveRequest,
+      rejectRequest,
+      removeParticipant,
+      updateGameDetails,
+      fetchGameMessages,
+      sendGameMessage,
       joinGroup,
       leaveGroup,
+      approveGroupJoinRequest,
+      rejectGroupJoinRequest,
+      fetchGroupMessages,
+      sendGroupMessage,
       createGroup,
       registerEvent,
       unregisterEvent,

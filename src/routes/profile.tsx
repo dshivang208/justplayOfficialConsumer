@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import {
   Camera,
   ChevronRight,
@@ -8,13 +9,21 @@ import {
   LogOut,
   Plus,
   Smartphone,
+  Star,
+  Trash2,
+  Trophy,
+  CalendarDays,
   Check,
 } from "lucide-react";
 import { Navbar } from "@/components/jp/Navbar";
 import { Footer } from "@/components/jp/Footer";
 import { Button } from "@/components/jp/Button";
+import { AddPaymentMethodModal } from "@/components/jp/AddPaymentMethodModal";
 import { useAuth, type NotificationPrefs } from "@/lib/auth";
 import { useWallet } from "@/lib/wallet";
+import { usePaymentMethods } from "@/lib/paymentMethods";
+import { useCommunity } from "@/lib/community";
+import { relativeDayLabel } from "@/lib/games";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/profile")({
@@ -35,12 +44,6 @@ export const Route = createFileRoute("/profile")({
   },
   component: ProfilePage,
 });
-
-const savedMethods = [
-  { id: "pm1", type: "upi" as const, label: "shivang@okhdfcbank", meta: "Default · UPI" },
-  { id: "pm2", type: "upi" as const, label: "9876543210@ybl", meta: "PhonePe UPI" },
-  { id: "pm3", type: "card" as const, label: "HDFC Visa •••• 4412", meta: "Expires 08/29" },
-];
 
 const prefLabels: Array<{ key: keyof NotificationPrefs; title: string; desc: string }> = [
   { key: "bookingReminders", title: "Booking reminders", desc: "Nudge me 2 hours before my slot" },
@@ -83,9 +86,16 @@ function ProfilePage() {
   const navigate = useNavigate();
   const { user, isAuthenticated, hydrated, prefs, setPrefs, updateProfile, logout } = useAuth();
   const { balance } = useWallet();
+  const { methods: savedMethods, setDefaultMethod, removeMethod } = usePaymentMethods();
+  const { events, registeredEventIds } = useCommunity();
+  const myEvents = events
+    .filter((e) => registeredEventIds.includes(e.id))
+    .sort((a, b) => a.dateISO.localeCompare(b.dateISO));
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [saved, setSaved] = useState(false);
+  const [addMethodOpen, setAddMethodOpen] = useState(false);
+  const [busyMethodId, setBusyMethodId] = useState<string | null>(null);
 
   useEffect(() => {
     setEmail(user?.email ?? "");
@@ -217,30 +227,90 @@ function ProfilePage() {
 
         <section className="surface-card mt-5 rounded-2xl p-4 sm:p-5">
           <h2 className="text-2xl leading-none">Payment methods</h2>
-          <ul className="mt-4 flex flex-col gap-2">
-            {savedMethods.map((m) => (
-              <li
-                key={m.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5"
-              >
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  {m.type === "upi" ? (
-                    <Smartphone className="h-4 w-4" />
-                  ) : (
-                    <CreditCard className="h-4 w-4" />
-                  )}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{m.label}</p>
-                  <p className="text-[11px] text-muted-foreground">{m.meta}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <Button variant="outline" size="sm" className="mt-3">
+          {savedMethods.length === 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              No saved payment methods yet — add a UPI ID for faster checkout.
+            </p>
+          ) : (
+            <ul className="mt-4 flex flex-col gap-2">
+              {savedMethods.map((m) => (
+                <li
+                  key={m.id}
+                  className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    {m.type === "upi" ? (
+                      <Smartphone className="h-4 w-4" />
+                    ) : (
+                      <CreditCard className="h-4 w-4" />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{m.maskedIdentifier}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {m.isDefault ? "Default · " : ""}
+                      {m.type === "upi" ? "UPI" : "Card"}
+                    </p>
+                  </div>
+                  {!m.isDefault ? (
+                    <button
+                      onClick={async () => {
+                        setBusyMethodId(m.id);
+                        try {
+                          await setDefaultMethod(m.id);
+                          toast.success("Default payment method updated");
+                        } catch (err) {
+                          toast.error(
+                            err instanceof Error ? err.message : "Couldn't update default.",
+                          );
+                        } finally {
+                          setBusyMethodId(null);
+                        }
+                      }}
+                      disabled={busyMethodId === m.id}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                      aria-label={`Set ${m.maskedIdentifier} as default`}
+                      title="Set as default"
+                    >
+                      <Star className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                  <button
+                    onClick={async () => {
+                      setBusyMethodId(m.id);
+                      try {
+                        await removeMethod(m.id);
+                        toast.success("Payment method removed");
+                      } catch (err) {
+                        toast.error(
+                          err instanceof Error ? err.message : "Couldn't remove this method.",
+                        );
+                      } finally {
+                        setBusyMethodId(null);
+                      }
+                    }}
+                    disabled={busyMethodId === m.id}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={`Remove ${m.maskedIdentifier}`}
+                    title="Remove"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => setAddMethodOpen(true)}
+          >
             <Plus className="h-4 w-4" /> Add new
           </Button>
         </section>
+
+        {addMethodOpen ? <AddPaymentMethodModal onClose={() => setAddMethodOpen(false)} /> : null}
 
         <section className="surface-card mt-5 rounded-2xl p-4 sm:p-5">
           <h2 className="text-2xl leading-none">Notifications</h2>
@@ -259,6 +329,43 @@ function ProfilePage() {
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="surface-card mt-5 rounded-2xl p-4 sm:p-5">
+          <h2 className="text-2xl leading-none">My Events</h2>
+          {myEvents.length === 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              No event registrations yet — browse{" "}
+              <Link to="/events" className="font-semibold text-primary hover:underline">
+                Events & Tournaments
+              </Link>{" "}
+              to find one.
+            </p>
+          ) : (
+            <ul className="mt-4 flex flex-col gap-2">
+              {myEvents.map((ev) => (
+                <li key={ev.id}>
+                  <Link
+                    to="/events/$eventId"
+                    params={{ eventId: ev.id }}
+                    className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5 hover:border-primary/60"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Trophy className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{ev.title}</p>
+                      <p className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <CalendarDays className="h-3 w-3" />
+                        {relativeDayLabel(ev.dateISO)} · {ev.venueName}
+                      </p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="surface-card mt-5 rounded-2xl p-2">

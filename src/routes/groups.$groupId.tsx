@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Lock, MapPin, Users } from "lucide-react";
+import { toast } from "sonner";
+import { ArrowLeft, Lock, MapPin, Users, Check, X } from "lucide-react";
 import { PageShell } from "@/components/jp/PageShell";
 import { Button } from "@/components/jp/Button";
 import { SportTag } from "@/components/jp/SportTag";
 import { GameCard } from "@/components/jp/GameCard";
+import { GroupChat } from "@/components/jp/GroupChat";
 import { EmptyState } from "@/components/jp/states";
 import { useCommunity } from "@/lib/community";
 import { useAuth } from "@/lib/auth";
@@ -40,6 +43,8 @@ function GroupDetailPage() {
     joinedGroupIds,
     joinGroup,
     leaveGroup,
+    approveGroupJoinRequest,
+    rejectGroupJoinRequest,
     gamesForGroup,
     joinedGameIds,
     requestedGameIds,
@@ -47,6 +52,9 @@ function GroupDetailPage() {
     requestJoin,
     loading,
   } = useCommunity();
+
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [busyRequestId, setBusyRequestId] = useState<string | null>(null);
 
   const group = getGroup(groupId);
   if (!group) {
@@ -64,23 +72,74 @@ function GroupDetailPage() {
 
   const joined = joinedGroupIds.includes(group.id);
   const games = gamesForGroup(group.id);
+  const isAdmin = group.myRole === "admin";
 
-  const toggleMembership = () => {
+  const handleJoinClick = async () => {
     if (!isAuthenticated) {
       void navigate({ to: "/auth", search: { redirect: `/groups/${group.id}` } });
       return;
     }
-    if (joined) leaveGroup(group.id);
-    else joinGroup(group.id);
+    try {
+      const status = await joinGroup(group.id);
+      toast.success(
+        status === "pending" ? "Request sent to the group admin" : "You're in the group!",
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't join this group. Try again.");
+    }
   };
 
-  const handleJoinGame = (gameId: string, approvalNeeded: boolean) => {
+  const handleLeaveConfirmed = async () => {
+    try {
+      await leaveGroup(group.id);
+      toast.success("You've left the group");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't leave this group. Try again.");
+    } finally {
+      setConfirmLeave(false);
+    }
+  };
+
+  const handleApprove = async (userId: string) => {
+    setBusyRequestId(userId);
+    try {
+      await approveGroupJoinRequest(group.id, userId);
+      toast.success("Request approved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't approve this request.");
+    } finally {
+      setBusyRequestId(null);
+    }
+  };
+
+  const handleReject = async (userId: string) => {
+    setBusyRequestId(userId);
+    try {
+      await rejectGroupJoinRequest(group.id, userId);
+      toast.success("Request rejected");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't reject this request.");
+    } finally {
+      setBusyRequestId(null);
+    }
+  };
+
+  const handleJoinGame = async (gameId: string, approvalNeeded: boolean) => {
     if (!isAuthenticated) {
       void navigate({ to: "/auth", search: { redirect: `/groups/${group.id}` } });
       return;
     }
-    if (approvalNeeded) requestJoin(gameId);
-    else joinGame(gameId);
+    try {
+      if (approvalNeeded) {
+        await requestJoin(gameId);
+        toast.success("Request sent to the host");
+      } else {
+        await joinGame(gameId);
+        toast.success("You're in! Spot confirmed.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't join this game. Try again.");
+    }
   };
 
   return (
@@ -127,11 +186,57 @@ function GroupDetailPage() {
             size="lg"
             variant={joined ? "outline" : "primary"}
             className="h-fit shrink-0"
-            onClick={toggleMembership}
+            onClick={joined ? () => setConfirmLeave(true) : handleJoinClick}
           >
             {joined ? "Leave Group" : "Join Group"}
           </Button>
         </div>
+
+        {isAdmin && group.pendingRequests.length > 0 ? (
+          <div className="mt-8">
+            <h2 className="text-2xl leading-none">
+              Pending Requests{" "}
+              <span className="text-muted-foreground">({group.pendingRequests.length})</span>
+            </h2>
+            <div className="mt-3 space-y-2">
+              {group.pendingRequests.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between gap-2 rounded-xl border border-border bg-surface px-3 py-2.5"
+                >
+                  <div className="flex items-center gap-2.5">
+                    {p.photoUrl ? (
+                      <img src={p.photoUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    ) : (
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-[11px] font-bold">
+                        {p.initials}
+                      </span>
+                    )}
+                    <span className="text-sm font-semibold">{p.name}</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive hover:bg-destructive/10"
+                      disabled={busyRequestId === p.id}
+                      onClick={() => handleReject(p.id)}
+                    >
+                      <X className="h-4 w-4" /> Reject
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={busyRequestId === p.id}
+                      onClick={() => handleApprove(p.id)}
+                    >
+                      <Check className="h-4 w-4" /> Approve
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-8">
           <h2 className="text-2xl leading-none">
@@ -143,14 +248,30 @@ function GroupDetailPage() {
                 key={m.id}
                 className="flex items-center gap-2 rounded-full border border-border bg-surface py-1 pl-1 pr-3"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-secondary text-[11px] font-bold text-foreground">
-                  {m.initials}
-                </span>
+                {m.photoUrl ? (
+                  <img src={m.photoUrl} alt="" className="h-7 w-7 rounded-full object-cover" />
+                ) : (
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-secondary text-[11px] font-bold text-foreground">
+                    {m.initials}
+                  </span>
+                )}
                 <span className="text-xs font-semibold">{m.name}</span>
               </div>
             ))}
           </div>
         </div>
+
+        {joined ? (
+          <div className="mt-8">
+            <h2 className="text-2xl leading-none">Group Chat</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Only visible to members of this group.
+            </p>
+            <div className="mt-3">
+              <GroupChat groupId={group.id} />
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-8">
           <h2 className="text-2xl leading-none">Upcoming games from this group</h2>
@@ -177,6 +298,28 @@ function GroupDetailPage() {
           </div>
         </div>
       </div>
+
+      {confirmLeave ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-5 text-center">
+            <h2 className="text-xl leading-none">Leave {group.name}?</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              You'll stop seeing this group's chat and hosted games unless you rejoin.
+            </p>
+            <div className="mt-5 flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setConfirmLeave(false)}>
+                Stay in group
+              </Button>
+              <Button
+                className="flex-1 bg-destructive text-destructive-foreground hover:brightness-110"
+                onClick={handleLeaveConfirmed}
+              >
+                Leave group
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </PageShell>
   );
 }

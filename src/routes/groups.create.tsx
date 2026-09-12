@@ -44,6 +44,7 @@ function CreateGroupPage() {
   const [image, setImage] = useState(coverOptions[0]!);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   if (hydrated && !isAuthenticated) {
     return (
@@ -62,9 +63,17 @@ function CreateGroupPage() {
     );
   }
 
-  const canSubmit = name.trim().length >= 3 && description.trim().length > 0;
+  const nameError =
+    name.trim().length === 0
+      ? "Group name is required."
+      : name.trim().length < 3
+        ? "Group name must be at least 3 characters."
+        : null;
+  const sportError = sport.trim().length === 0 ? "Please choose a sport." : null;
+  const canSubmit = !nameError && !sportError;
 
   const submit = async () => {
+    setAttemptedSubmit(true);
     if (!canSubmit) return;
     setSubmitting(true);
     setSubmitError(null);
@@ -106,8 +115,15 @@ function CreateGroupPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Kalyanpur Sunday Strikers"
-              className="mt-1.5 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold outline-none focus:border-primary"
+              aria-invalid={attemptedSubmit && !!nameError}
+              className={cn(
+                "mt-1.5 h-11 w-full rounded-xl border bg-surface px-3 text-sm font-semibold outline-none focus:border-primary",
+                attemptedSubmit && nameError ? "border-destructive" : "border-border",
+              )}
             />
+            {attemptedSubmit && nameError ? (
+              <p className="mt-1 text-xs font-semibold text-destructive">{nameError}</p>
+            ) : null}
           </div>
 
           <div>
@@ -121,6 +137,9 @@ function CreateGroupPage() {
                 </Chip>
               ))}
             </div>
+            {attemptedSubmit && sportError ? (
+              <p className="mt-1 text-xs font-semibold text-destructive">{sportError}</p>
+            ) : null}
           </div>
 
           <div>
@@ -220,7 +239,7 @@ function CreateGroupPage() {
             </div>
           </div>
 
-          <Button size="lg" className="w-full" disabled={!canSubmit || submitting} onClick={submit}>
+          <Button size="lg" className="w-full" disabled={submitting} onClick={submit}>
             {submitting ? "Creating…" : "Create Group"}
           </Button>
           {submitError ? (

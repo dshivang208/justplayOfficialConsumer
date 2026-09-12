@@ -10,18 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BookingsRouteImport } from './routes/bookings'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as GamesRouteImport } from './routes/games'
 import { Route as GroupsRouteImport } from './routes/groups'
 import { Route as HostRouteImport } from './routes/host'
 import { Route as InviteRouteImport } from './routes/invite'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as VenuesRouteImport } from './routes/venues'
 import { Route as BookVenueIdRouteImport } from './routes/book.$venueId'
+import { Route as EventsIndexRouteImport } from './routes/events.index'
 import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
 import { Route as GamesGameIdRouteImport } from './routes/games.$gameId'
+import { Route as GroupsIndexRouteImport } from './routes/groups.index'
 import { Route as GroupsGroupIdRouteImport } from './routes/groups.$groupId'
 import { Route as GroupsCreateRouteImport } from './routes/groups.create'
 import { Route as VenuesIndexRouteImport } from './routes/venues.index'
@@ -32,6 +38,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -40,6 +51,11 @@ const AuthRoute = AuthRouteImport.update({
 const BookingsRoute = BookingsRouteImport.update({
   id: '/bookings',
   path: '/bookings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EventsRoute = EventsRouteImport.update({
@@ -67,9 +83,19 @@ const InviteRoute = InviteRouteImport.update({
   path: '/invite',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VenuesRoute = VenuesRouteImport.update({
@@ -82,6 +108,11 @@ const BookVenueIdRoute = BookVenueIdRouteImport.update({
   path: '/book/$venueId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EventsIndexRoute = EventsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EventsRoute,
+} as any)
 const EventsEventIdRoute = EventsEventIdRouteImport.update({
   id: '/$eventId',
   path: '/$eventId',
@@ -91,6 +122,11 @@ const GamesGameIdRoute = GamesGameIdRouteImport.update({
   id: '/$gameId',
   path: '/$gameId',
   getParentRoute: () => GamesRoute,
+} as any)
+const GroupsIndexRoute = GroupsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GroupsRoute,
 } as any)
 const GroupsGroupIdRoute = GroupsGroupIdRouteImport.update({
   id: '/$groupId',
@@ -115,14 +151,18 @@ const VenuesVenueIdRoute = VenuesVenueIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/bookings': typeof BookingsRoute
+  '/contact': typeof ContactRoute
   '/events': typeof EventsRouteWithChildren
   '/games': typeof GamesRouteWithChildren
   '/groups': typeof GroupsRouteWithChildren
   '/host': typeof HostRoute
   '/invite': typeof InviteRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/terms': typeof TermsRoute
   '/venues': typeof VenuesRouteWithChildren
   '/book/$venueId': typeof BookVenueIdRoute
   '/events/$eventId': typeof EventsEventIdRoute
@@ -130,37 +170,47 @@ export interface FileRoutesByFullPath {
   '/groups/$groupId': typeof GroupsGroupIdRoute
   '/groups/create': typeof GroupsCreateRoute
   '/venues/$venueId': typeof VenuesVenueIdRoute
+  '/events/': typeof EventsIndexRoute
+  '/groups/': typeof GroupsIndexRoute
   '/venues/': typeof VenuesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/bookings': typeof BookingsRoute
-  '/events': typeof EventsRouteWithChildren
+  '/contact': typeof ContactRoute
   '/games': typeof GamesRouteWithChildren
-  '/groups': typeof GroupsRouteWithChildren
   '/host': typeof HostRoute
   '/invite': typeof InviteRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/terms': typeof TermsRoute
   '/book/$venueId': typeof BookVenueIdRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/games/$gameId': typeof GamesGameIdRoute
   '/groups/$groupId': typeof GroupsGroupIdRoute
   '/groups/create': typeof GroupsCreateRoute
   '/venues/$venueId': typeof VenuesVenueIdRoute
+  '/events': typeof EventsIndexRoute
+  '/groups': typeof GroupsIndexRoute
   '/venues': typeof VenuesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/bookings': typeof BookingsRoute
+  '/contact': typeof ContactRoute
   '/events': typeof EventsRouteWithChildren
   '/games': typeof GamesRouteWithChildren
   '/groups': typeof GroupsRouteWithChildren
   '/host': typeof HostRoute
   '/invite': typeof InviteRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/terms': typeof TermsRoute
   '/venues': typeof VenuesRouteWithChildren
   '/book/$venueId': typeof BookVenueIdRoute
   '/events/$eventId': typeof EventsEventIdRoute
@@ -168,20 +218,26 @@ export interface FileRoutesById {
   '/groups/$groupId': typeof GroupsGroupIdRoute
   '/groups/create': typeof GroupsCreateRoute
   '/venues/$venueId': typeof VenuesVenueIdRoute
+  '/events/': typeof EventsIndexRoute
+  '/groups/': typeof GroupsIndexRoute
   '/venues/': typeof VenuesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/auth'
     | '/bookings'
+    | '/contact'
     | '/events'
     | '/games'
     | '/groups'
     | '/host'
     | '/invite'
+    | '/privacy'
     | '/profile'
+    | '/terms'
     | '/venues'
     | '/book/$venueId'
     | '/events/$eventId'
@@ -189,36 +245,46 @@ export interface FileRouteTypes {
     | '/groups/$groupId'
     | '/groups/create'
     | '/venues/$venueId'
+    | '/events/'
+    | '/groups/'
     | '/venues/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/auth'
     | '/bookings'
-    | '/events'
+    | '/contact'
     | '/games'
-    | '/groups'
     | '/host'
     | '/invite'
+    | '/privacy'
     | '/profile'
+    | '/terms'
     | '/book/$venueId'
     | '/events/$eventId'
     | '/games/$gameId'
     | '/groups/$groupId'
     | '/groups/create'
     | '/venues/$venueId'
+    | '/events'
+    | '/groups'
     | '/venues'
   id:
     | '__root__'
     | '/'
+    | '/about'
     | '/auth'
     | '/bookings'
+    | '/contact'
     | '/events'
     | '/games'
     | '/groups'
     | '/host'
     | '/invite'
+    | '/privacy'
     | '/profile'
+    | '/terms'
     | '/venues'
     | '/book/$venueId'
     | '/events/$eventId'
@@ -226,19 +292,25 @@ export interface FileRouteTypes {
     | '/groups/$groupId'
     | '/groups/create'
     | '/venues/$venueId'
+    | '/events/'
+    | '/groups/'
     | '/venues/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
   BookingsRoute: typeof BookingsRoute
+  ContactRoute: typeof ContactRoute
   EventsRoute: typeof EventsRouteWithChildren
   GamesRoute: typeof GamesRouteWithChildren
   GroupsRoute: typeof GroupsRouteWithChildren
   HostRoute: typeof HostRoute
   InviteRoute: typeof InviteRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
+  TermsRoute: typeof TermsRoute
   VenuesRoute: typeof VenuesRouteWithChildren
   BookVenueIdRoute: typeof BookVenueIdRoute
 }
@@ -250,6 +322,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -264,6 +343,13 @@ declare module '@tanstack/react-router' {
       path: '/bookings'
       fullPath: '/bookings'
       preLoaderRoute: typeof BookingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events': {
@@ -301,11 +387,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InviteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/venues': {
@@ -322,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookVenueIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/events/': {
+      id: '/events/'
+      path: '/'
+      fullPath: '/events/'
+      preLoaderRoute: typeof EventsIndexRouteImport
+      parentRoute: typeof EventsRoute
+    }
     '/events/$eventId': {
       id: '/events/$eventId'
       path: '/$eventId'
@@ -335,6 +442,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/games/$gameId'
       preLoaderRoute: typeof GamesGameIdRouteImport
       parentRoute: typeof GamesRoute
+    }
+    '/groups/': {
+      id: '/groups/'
+      path: '/'
+      fullPath: '/groups/'
+      preLoaderRoute: typeof GroupsIndexRouteImport
+      parentRoute: typeof GroupsRoute
     }
     '/groups/$groupId': {
       id: '/groups/$groupId'
@@ -369,10 +483,12 @@ declare module '@tanstack/react-router' {
 
 interface EventsRouteChildren {
   EventsEventIdRoute: typeof EventsEventIdRoute
+  EventsIndexRoute: typeof EventsIndexRoute
 }
 
 const EventsRouteChildren: EventsRouteChildren = {
   EventsEventIdRoute: EventsEventIdRoute,
+  EventsIndexRoute: EventsIndexRoute,
 }
 
 const EventsRouteWithChildren =
@@ -391,11 +507,13 @@ const GamesRouteWithChildren = GamesRoute._addFileChildren(GamesRouteChildren)
 interface GroupsRouteChildren {
   GroupsGroupIdRoute: typeof GroupsGroupIdRoute
   GroupsCreateRoute: typeof GroupsCreateRoute
+  GroupsIndexRoute: typeof GroupsIndexRoute
 }
 
 const GroupsRouteChildren: GroupsRouteChildren = {
   GroupsGroupIdRoute: GroupsGroupIdRoute,
   GroupsCreateRoute: GroupsCreateRoute,
+  GroupsIndexRoute: GroupsIndexRoute,
 }
 
 const GroupsRouteWithChildren =
@@ -416,14 +534,18 @@ const VenuesRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
   BookingsRoute: BookingsRoute,
+  ContactRoute: ContactRoute,
   EventsRoute: EventsRouteWithChildren,
   GamesRoute: GamesRouteWithChildren,
   GroupsRoute: GroupsRouteWithChildren,
   HostRoute: HostRoute,
   InviteRoute: InviteRoute,
+  PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
+  TermsRoute: TermsRoute,
   VenuesRoute: VenuesRouteWithChildren,
   BookVenueIdRoute: BookVenueIdRoute,
 }

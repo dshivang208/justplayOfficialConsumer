@@ -35,6 +35,8 @@ export type Venue = {
   distanceKm: number;
   rating: number;
   isOpenNow: boolean;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type PriceRow = { sport: string; slotType: string; hours: string; pricePerHour: number };
@@ -69,7 +71,14 @@ export type Slot = {
   status: "available" | "booked";
 };
 
-const galleryPool = [heroTurf, venueBoxCricket, venueBadminton, venueTennis, groupCricket, groupFootball];
+const galleryPool = [
+  heroTurf,
+  venueBoxCricket,
+  venueBadminton,
+  venueTennis,
+  groupCricket,
+  groupFootball,
+];
 
 /** Deterministic pick from the bundled photo pool, keyed by venue id — used
  *  as a fallback whenever `venues.photos` is empty (no partner-uploaded
@@ -91,7 +100,9 @@ function haversineKm(lat: number, lng: number) {
   const dLng = ((lng - CITY_CENTER.lng) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((CITY_CENTER.lat * Math.PI) / 180) * Math.cos((lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    Math.cos((CITY_CENTER.lat * Math.PI) / 180) *
+      Math.cos((lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -153,12 +164,16 @@ function rowToVenue(row: VenueRow, pricing: PricingRow[]): Venue {
         : 2.5,
     rating: row.rating ?? 4.5,
     isOpenNow: isOpenNow(row.operating_hours),
+    latitude: row.latitude,
+    longitude: row.longitude,
   };
 }
 
 function rowToDetail(row: VenueRow, pricing: PricingRow[]): VenueDetail {
   const venue = rowToVenue(row, pricing);
-  const gallery = row.photos?.length ? row.photos : [fallbackImage(row.id), ...galleryPool.slice(0, 3)];
+  const gallery = row.photos?.length
+    ? row.photos
+    : [fallbackImage(row.id), ...galleryPool.slice(0, 3)];
   return {
     ...venue,
     tagline: row.tagline ?? "",
@@ -211,10 +226,14 @@ export async function fetchVenues(filters: VenueFilterQuery = {}): Promise<Venue
   );
 
   if (filters.sport) results = results.filter((v) => v.sports.includes(filters.sport!));
-  if (filters.maxPrice != null) results = results.filter((v) => v.pricePerHour <= filters.maxPrice!);
-  if (filters.maxDistance != null) results = results.filter((v) => v.distanceKm <= filters.maxDistance!);
+  if (filters.maxPrice != null)
+    results = results.filter((v) => v.pricePerHour <= filters.maxPrice!);
+  if (filters.maxDistance != null)
+    results = results.filter((v) => v.distanceKm <= filters.maxDistance!);
   if (filters.amenities?.length) {
-    results = results.filter((v) => filters.amenities!.every((a) => v.amenities.includes(a as Amenity)));
+    results = results.filter((v) =>
+      filters.amenities!.every((a) => v.amenities.includes(a as Amenity)),
+    );
   }
 
   return results;

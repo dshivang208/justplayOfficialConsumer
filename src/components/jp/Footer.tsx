@@ -35,14 +35,14 @@ export function Footer() {
           <h3 className="text-lg">Company</h3>
           <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
             <li>
-              <a href="#" className="hover:text-primary">
+              <Link to="/about" className="hover:text-primary">
                 About
-              </a>
+              </Link>
             </li>
             <li>
-              <a href="#" className="hover:text-primary">
+              <Link to="/contact" className="hover:text-primary">
                 Contact
-              </a>
+              </Link>
             </li>
             <li>
               <a href="#" className="hover:text-primary">
@@ -50,9 +50,14 @@ export function Footer() {
               </a>
             </li>
             <li>
-              <a href="#" className="hover:text-primary">
-                Privacy & Terms
-              </a>
+              <Link to="/privacy" className="hover:text-primary">
+                Privacy Policy
+              </Link>
+            </li>
+            <li>
+              <Link to="/terms" className="hover:text-primary">
+                Terms & Conditions
+              </Link>
             </li>
           </ul>
         </div>
@@ -78,9 +83,19 @@ export function Footer() {
       </div>
 
       <div className="border-t border-border px-4 py-5 sm:px-6">
-        <p className="mx-auto w-full max-w-6xl text-xs text-muted-foreground">
-          © {new Date().getFullYear()} JustPlay Sports Pvt. Ltd. · Made in Kanpur, India.
-        </p>
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} JustPlay Sports Pvt. Ltd. · Made in Kanpur, India.
+          </p>
+          <div className="flex gap-4 text-xs text-muted-foreground">
+            <Link to="/privacy" className="hover:text-primary">
+              Privacy Policy
+            </Link>
+            <Link to="/terms" className="hover:text-primary">
+              Terms & Conditions
+            </Link>
+          </div>
+        </div>
       </div>
     </footer>
   );

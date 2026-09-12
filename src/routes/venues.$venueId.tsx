@@ -1,17 +1,10 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import {
-  MapPin,
-  Star,
-  Clock,
-  ArrowLeft,
-  Check,
-  ParkingCircle,
-  Navigation,
-} from "lucide-react";
+import { MapPin, Star, Clock, ArrowLeft, Check, ParkingCircle, Navigation } from "lucide-react";
 import { Navbar } from "@/components/jp/Navbar";
 import { Footer } from "@/components/jp/Footer";
 import { Button } from "@/components/jp/Button";
 import { SportTag } from "@/components/jp/SportTag";
+import { VenueMap } from "@/components/jp/VenueMap";
 import { useEffect, useState } from "react";
 import { fetchVenue, fetchVenues, type VenueDetail } from "@/data/venues";
 import { formatINR } from "@/lib/booking";
@@ -84,13 +77,7 @@ function VenueNotFound() {
   );
 }
 
-function Card({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="surface-card rounded-2xl p-4 sm:p-5">
       <h2 className="mb-3 text-2xl leading-none">{title}</h2>
@@ -216,9 +203,7 @@ function VenueDetailPage() {
                         <td className="py-2.5 font-semibold">{p.sport}</td>
                         <td className="py-2.5 text-muted-foreground">{p.slotType}</td>
                         <td className="py-2.5 text-muted-foreground">{p.hours}</td>
-                        <td className="py-2.5 text-right font-bold">
-                          {formatINR(p.pricePerHour)}
-                        </td>
+                        <td className="py-2.5 text-right font-bold">{formatINR(p.pricePerHour)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -228,14 +213,8 @@ function VenueDetailPage() {
 
             <Card title="Location">
               <p className="text-sm text-muted-foreground">{venue.address}</p>
-              <div className="relative mt-3 flex h-44 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-raised">
-                <div className="absolute inset-0 opacity-[0.35] [background-image:linear-gradient(var(--border)_1px,transparent_1px),linear-gradient(90deg,var(--border)_1px,transparent_1px)] [background-size:28px_28px]" />
-                <div className="relative text-center">
-                  <MapPin className="mx-auto h-7 w-7 text-primary" />
-                  <p className="mt-1.5 text-xs font-semibold text-muted-foreground">
-                    Map preview coming soon
-                  </p>
-                </div>
+              <div className="mt-3">
+                <VenueMap latitude={venue.latitude} longitude={venue.longitude} name={venue.name} />
               </div>
               <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5">

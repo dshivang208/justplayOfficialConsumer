@@ -1,15 +1,17 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarX2, Check, Clock, MapPin, MessageCircle, Users } from "lucide-react";
+import { ArrowLeft, CalendarX2, Check, Clock, MapPin, Settings, Users } from "lucide-react";
 import { PageShell } from "@/components/jp/PageShell";
+import { ManageGameModal } from "@/components/jp/ManageGameModal";
 import { Button } from "@/components/jp/Button";
 import { SportTag } from "@/components/jp/SportTag";
-import { perHead } from "@/data/community";
+import { perHead, type GameMessage } from "@/data/community";
 import { gameTimeLabel, relativeDayLabel } from "@/lib/games";
 import { formatDateLong, formatINR } from "@/lib/booking";
 import { useCommunity } from "@/lib/community";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabaseClient";
 
 type Search = { new?: boolean };
 
@@ -54,9 +56,7 @@ function GameDetailPage() {
     loading,
   } = useCommunity();
 
-  const [messageOpen, setMessageOpen] = useState(false);
-  const [message, setMessage] = useState("");
-  const [sent, setSent] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const game = getGame(gameId);
@@ -227,16 +227,18 @@ function GameDetailPage() {
             ))}
           </div>
 
+          {joined && !game.isMine ? <HostMessages gameId={game.id} /> : null}
+
           <div className="mt-6 border-t border-border pt-5">
             {game.isMine ? (
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setMessageOpen(true)}
+                  onClick={() => setManageOpen(true)}
                   disabled={cancelled}
                 >
-                  <MessageCircle className="h-4 w-4" /> Message players
+                  <Settings className="h-4 w-4" /> Manage Game
                 </Button>
                 {!cancelled ? (
                   <Button
@@ -277,48 +279,15 @@ function GameDetailPage() {
         </div>
       </div>
 
-      {messageOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-md rounded-t-3xl border border-border bg-background p-5 sm:rounded-3xl">
-            <h2 className="text-2xl leading-none">Message joined players</h2>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              Sent to all {game.players.length} players in this game. Chat history isn't saved yet —
-              this is a preview of what's coming.
-            </p>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={4}
-              placeholder="Reminder: bring your own racket…"
-              className="mt-4 w-full rounded-2xl border border-border bg-surface p-4 text-sm outline-none focus:border-primary"
-            />
-            <div className="mt-4 flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  setMessageOpen(false);
-                  setMessage("");
-                  setSent(false);
-                }}
-              >
-                Close
-              </Button>
-              <Button
-                className="flex-1"
-                disabled={!message.trim()}
-                onClick={() => {
-                  setSent(true);
-                  setMessage("");
-                  setTimeout(() => setMessageOpen(false), 900);
-                }}
-              >
-                {sent ? <Check className="h-4 w-4" /> : null}
-                {sent ? "Sent" : "Send"}
-              </Button>
-            </div>
-          </div>
-        </div>
+      {manageOpen ? (
+        <ManageGameModal
+          game={game}
+          onClose={() => setManageOpen(false)}
+          onRequestCancel={() => {
+            setManageOpen(false);
+            setConfirmCancel(true);
+          }}
+        />
       ) : null}
 
       {confirmCancel ? (
@@ -356,6 +325,60 @@ function InfoRow({ icon, label, value }: { icon?: ReactNode; label: string; valu
         {label}
       </span>
       <span className="text-sm font-semibold text-foreground">{value}</span>
+    </div>
+  );
+}
+
+/** Read-only view of the host's broadcast messages, for a joined
+ *  non-host player. Subscribes to game_messages so a new message from the
+ *  host shows up live without a manual refresh. */
+function HostMessages({ gameId }: { gameId: string }) {
+  const { fetchGameMessages } = useCommunity();
+  const [messages, setMessages] = useState<GameMessage[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetchGameMessages(gameId).then((msgs) => {
+      if (active) setMessages(msgs);
+    });
+
+    const channel = supabase
+      .channel(`game-messages-${gameId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "game_messages",
+          filter: `game_id=eq.${gameId}`,
+        },
+        () => {
+          void fetchGameMessages(gameId).then((msgs) => {
+            if (active) setMessages(msgs);
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [gameId, fetchGameMessages]);
+
+  if (messages.length === 0) return null;
+
+  return (
+    <div className="mt-5 rounded-xl border border-border bg-secondary p-3.5">
+      <p className="text-xs font-bold text-foreground">Messages from the host</p>
+      <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
+        {messages.map((m) => (
+          <div key={m.id} className="text-xs">
+            <span className="font-semibold text-foreground">{m.senderName}: </span>
+            <span className="text-muted-foreground">{m.message}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -12,12 +12,17 @@ export function GameCard({
   joined,
   requested,
   onJoin,
+  onManage,
   className,
 }: {
   game: Game;
   joined?: boolean;
   requested?: boolean;
   onJoin?: () => void;
+  /** When provided, "Manage" opens the management view immediately (e.g.
+   *  a modal right here) instead of navigating to the game's own detail
+   *  page first — one click, not two. */
+  onManage?: () => void;
   className?: string;
 }) {
   const filled = game.players.length;
@@ -97,12 +102,22 @@ export function GameCard({
           )}
         </span>
         {game.isMine ? (
-          <Button asChild size="sm" variant="outline">
-            <Link to="/games/$gameId" params={{ gameId: game.id }}>Manage</Link>
-          </Button>
+          onManage ? (
+            <Button size="sm" variant="outline" onClick={onManage}>
+              Manage
+            </Button>
+          ) : (
+            <Button asChild size="sm" variant="outline">
+              <Link to="/games/$gameId" params={{ gameId: game.id }}>
+                Manage
+              </Link>
+            </Button>
+          )
         ) : joined ? (
           <Button asChild size="sm" variant="surface">
-            <Link to="/games/$gameId" params={{ gameId: game.id }}>Joined ✓</Link>
+            <Link to="/games/$gameId" params={{ gameId: game.id }}>
+              Joined ✓
+            </Link>
           </Button>
         ) : requested ? (
           <Button size="sm" variant="surface" disabled>

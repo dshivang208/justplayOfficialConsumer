@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ArrowRight, Users } from "lucide-react";
@@ -5,14 +6,26 @@ import { useCommunity } from "@/lib/community";
 import { useAuth } from "@/lib/auth";
 import { Section, SectionHeading } from "./SectionHeading";
 import { GameCard } from "./GameCard";
+import { ManageGameModal } from "./ManageGameModal";
 import { Button } from "./Button";
 import { SkeletonGrid, EmptyState } from "./states";
 
 export function HostedGamesSection() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { games, joinedGameIds, requestedGameIds, joinGame, requestJoin, loading, hydrated } =
-    useCommunity();
+  const {
+    games,
+    joinedGameIds,
+    requestedGameIds,
+    joinGame,
+    requestJoin,
+    cancelGame,
+    loading,
+    hydrated,
+  } = useCommunity();
+  const [manageGameId, setManageGameId] = useState<string | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const manageGame = manageGameId ? (games.find((g) => g.id === manageGameId) ?? null) : null;
 
   // Real, live hosted games only — soonest first, capped to a homepage
   // preview. No demo/mock rows here; "See all games" links to /games for
@@ -76,10 +89,51 @@ export function HostedGamesSection() {
               joined={joinedGameIds.includes(g.id)}
               requested={requestedGameIds.includes(g.id)}
               onJoin={() => handleJoin(g.id, g.joinPolicy === "approval")}
+              onManage={() => setManageGameId(g.id)}
             />
           ))}
         </div>
       )}
+
+      {manageGame ? (
+        <ManageGameModal
+          game={manageGame}
+          onClose={() => setManageGameId(null)}
+          onRequestCancel={() => setConfirmCancel(true)}
+        />
+      ) : null}
+
+      {confirmCancel && manageGame ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-5 text-center">
+            <h2 className="text-xl leading-none">Cancel this game?</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Joined players will be notified and this game will be removed from public discovery.
+            </p>
+            <div className="mt-5 flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setConfirmCancel(false)}>
+                Keep it
+              </Button>
+              <Button
+                className="flex-1 bg-destructive text-destructive-foreground hover:brightness-110"
+                onClick={async () => {
+                  try {
+                    await cancelGame(manageGame.id);
+                    toast.success("Game cancelled");
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Couldn't cancel this game.");
+                  } finally {
+                    setConfirmCancel(false);
+                    setManageGameId(null);
+                  }
+                }}
+              >
+                Cancel game
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </Section>
   );
 }

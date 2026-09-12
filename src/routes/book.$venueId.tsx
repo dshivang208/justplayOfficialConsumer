@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, CalendarPlus, CheckCircle2, Loader2, Ticket } fr
 import { Navbar } from "@/components/jp/Navbar";
 import { useAuth } from "@/lib/auth";
 import { useWallet } from "@/lib/wallet";
+import { usePaymentMethods } from "@/lib/paymentMethods";
 import { Button } from "@/components/jp/Button";
 import { SlotGrid, SlotLegend } from "@/components/jp/booking/SlotGrid";
 import {
@@ -70,6 +71,8 @@ function BookingFlow() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { balance, refresh: refreshWallet } = useWallet();
+  const { methods: savedMethods } = usePaymentMethods();
+  const savedUpiMethods = savedMethods.filter((m) => m.type === "upi");
 
   const [step, setStep] = useState(0);
   const [sport, setSport] = useState(venue.sports[0] ?? "Cricket");
@@ -77,6 +80,16 @@ function BookingFlow() {
   const [selected, setSelected] = useState<Slot[]>([]);
   const [method, setMethod] = useState<PaymentMethod>("upi");
   const [upiId, setUpiId] = useState("");
+
+  // Prefill the default saved UPI ID once it's loaded, so a returning user
+  // doesn't have to manually retype or tap a chip — they can still change
+  // or clear it before paying.
+  useEffect(() => {
+    if (upiId) return;
+    const defaultMethod = savedUpiMethods.find((m) => m.isDefault) ?? savedUpiMethods[0];
+    if (defaultMethod) setUpiId(defaultMethod.maskedIdentifier);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedUpiMethods]);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState("");
@@ -301,6 +314,7 @@ function BookingFlow() {
               error={error}
               creditApplied={creditApplied}
               availableCredit={balance}
+              savedUpiMethods={savedUpiMethods}
             />
           ) : null}
 

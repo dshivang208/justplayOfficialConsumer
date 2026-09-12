@@ -1,12 +1,44 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { ArrowRight, Users } from "lucide-react";
-import { groups } from "@/data/landing";
+import { useCommunity } from "@/lib/community";
+import { useAuth } from "@/lib/auth";
 import { Section, SectionHeading } from "./SectionHeading";
+import { GroupCard } from "./GroupCard";
 import { Button } from "./Button";
-import { SportTag } from "./SportTag";
 import { SkeletonGrid, EmptyState } from "./states";
 
-export function GroupsSection({ isLoading = false }: { isLoading?: boolean }) {
+export function GroupsSection() {
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
+  const { groups, joinedGroupIds, joinGroup, leaveGroup, loading, hydrated } = useCommunity();
+  const isLoading = loading && !hydrated;
+  // Real, live groups only — highest member count first (loadGroups()
+  // already orders by member_count), capped to a homepage preview. No
+  // demo/mock rows here; "Explore Groups" links to /groups for the full,
+  // filterable directory.
+  const featured = groups.slice(0, 4);
+
+  const handleToggle = async (groupId: string, joined: boolean) => {
+    if (!isAuthenticated) {
+      void navigate({ to: "/auth", search: { redirect: "/" } });
+      return;
+    }
+    try {
+      if (joined) {
+        await leaveGroup(groupId);
+        toast.success("You've left the group");
+      } else {
+        const status = await joinGroup(groupId);
+        toast.success(
+          status === "pending" ? "Request sent to the group admin" : "You're in the group!",
+        );
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't update your membership.");
+    }
+  };
+
   return (
     <Section id="groups">
       <SectionHeading
@@ -24,7 +56,7 @@ export function GroupsSection({ isLoading = false }: { isLoading?: boolean }) {
 
       {isLoading ? (
         <SkeletonGrid count={4} className="lg:grid-cols-4" />
-      ) : groups.length === 0 ? (
+      ) : featured.length === 0 ? (
         <EmptyState
           icon={<Users className="h-8 w-8" />}
           title="No groups yet"
@@ -32,32 +64,14 @@ export function GroupsSection({ isLoading = false }: { isLoading?: boolean }) {
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {groups.map((group) => (
-            <Link
+          {featured.map((group) => (
+            <GroupCard
               key={group.id}
-              to="/groups"
-              className="surface-card group relative flex min-h-52 flex-col justify-end overflow-hidden rounded-2xl p-4 transition-all hover:-translate-y-1 hover:border-primary/60"
-            >
-              <img
-                src={group.image}
-                alt={`${group.name} community in Kanpur`}
-                loading="lazy"
-                width={1024}
-                height={640}
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="gradient-card-overlay absolute inset-0" />
-                <div className="relative">
-                  <SportTag sport={group.sport} />
-                  <h3 className="mt-2 text-lg leading-tight text-on-image">{group.name}</h3>
-                <p className="mt-1 line-clamp-2 text-xs text-on-image-muted">{group.blurb}</p>
-                <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-on-image">
-                  <Users className="h-3.5 w-3.5" />
-                  {group.members.toLocaleString("en-IN")} members
-                </p>
-
-              </div>
-            </Link>
+              group={group}
+              joined={joinedGroupIds.includes(group.id)}
+              requested={group.pendingRequests.some((p) => p.id === user?.id)}
+              onToggle={() => handleToggle(group.id, joinedGroupIds.includes(group.id))}
+            />
           ))}
         </div>
       )}

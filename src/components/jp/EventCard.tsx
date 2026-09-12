@@ -8,11 +8,19 @@ import { SportTag } from "./SportTag";
 export function EventCard({
   event,
   registered,
+  onRegister,
+  registering,
 }: {
   event: CommunityEventDetail;
   registered?: boolean;
+  /** When provided, "Register Now"/"Register Interest" performs the real
+   *  registration immediately, right here — it does not just navigate to
+   *  the detail page and leave the actual registering for a second click. */
+  onRegister?: () => void;
+  registering?: boolean;
 }) {
   const spotsLeft = Math.max(0, event.capacity - event.registered);
+  const full = spotsLeft === 0 && !registered;
   return (
     <article className="surface-card group flex flex-col overflow-hidden rounded-2xl transition-all hover:-translate-y-1 hover:border-primary/60">
       <Link
@@ -64,17 +72,31 @@ export function EventCard({
               </>
             )}
           </span>
-          <Button asChild size="sm" variant={registered ? "surface" : "primary"}>
-            <Link to="/events/$eventId" params={{ eventId: event.id }}>
-              {registered
-                ? "Registered ✓"
-                : spotsLeft === 0
-                  ? "Waitlist"
-                  : event.ctaType === "interest"
-                    ? "Register Interest"
-                    : "Register Now"}
-            </Link>
-          </Button>
+          {registered ? (
+            <Button asChild size="sm" variant="surface">
+              <Link to="/events/$eventId" params={{ eventId: event.id }}>
+                Registered ✓
+              </Link>
+            </Button>
+          ) : full ? (
+            <Button size="sm" variant="surface" disabled>
+              Fully Booked
+            </Button>
+          ) : onRegister ? (
+            <Button size="sm" disabled={registering} onClick={onRegister}>
+              {registering
+                ? "Registering…"
+                : event.ctaType === "interest"
+                  ? "Register Interest"
+                  : "Register Now"}
+            </Button>
+          ) : (
+            <Button asChild size="sm">
+              <Link to="/events/$eventId" params={{ eventId: event.id }}>
+                {event.ctaType === "interest" ? "Register Interest" : "Register Now"}
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     </article>

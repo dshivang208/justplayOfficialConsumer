@@ -211,6 +211,7 @@ export function PaymentStep({
   error,
   creditApplied = 0,
   availableCredit = 0,
+  savedUpiMethods = [],
 }: {
   method: PaymentMethod;
   onMethodChange: (m: PaymentMethod) => void;
@@ -220,6 +221,9 @@ export function PaymentStep({
   error?: string | null;
   creditApplied?: number;
   availableCredit?: number;
+  /** Saved UPI IDs from the user's profile — shown as quick-select chips
+   *  so returning users don't have to retype a UPI ID every checkout. */
+  savedUpiMethods?: { id: string; maskedIdentifier: string; isDefault: boolean }[];
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -265,6 +269,31 @@ export function PaymentStep({
 
         {method === "upi" ? (
           <div className="mt-4 flex flex-col gap-3">
+            {savedUpiMethods.length > 0 ? (
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                  Saved UPI IDs
+                </span>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {savedUpiMethods.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => onUpiIdChange(m.maskedIdentifier)}
+                      className={cn(
+                        "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all",
+                        upiId === m.maskedIdentifier
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-surface text-muted-foreground hover:border-primary hover:text-primary",
+                      )}
+                    >
+                      {m.maskedIdentifier}
+                      {m.isDefault ? " · Default" : ""}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {upiApps.map((app) => (
                 <span

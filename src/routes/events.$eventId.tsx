@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { ArrowLeft, CalendarDays, CheckCircle2, MapPin, Trophy, Users } from "lucide-react";
 import { PageShell } from "@/components/jp/PageShell";
 import { Button } from "@/components/jp/Button";
@@ -39,6 +40,7 @@ function EventDetailPage() {
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [unregistering, setUnregistering] = useState(false);
 
   const event = getEvent(eventId);
   if (!event) {
@@ -58,6 +60,18 @@ function EventDetailPage() {
   const spotsLeft = Math.max(0, event.capacity - event.registered);
   const ctaLabel = event.ctaType === "interest" ? "Register Interest" : "Register Now";
 
+  const handleUnregister = async () => {
+    setUnregistering(true);
+    try {
+      await unregisterEvent(event.id);
+      toast.success("Registration cancelled");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't cancel your registration.");
+    } finally {
+      setUnregistering(false);
+    }
+  };
+
   const startRegistration = () => {
     if (!isAuthenticated) {
       void navigate({ to: "/auth", search: { redirect: `/events/${event.id}` } });
@@ -75,7 +89,9 @@ function EventDetailPage() {
       await registerEvent(event.id);
       setStage("done");
     } catch (e) {
-      setConfirmError(e instanceof Error ? e.message : "Could not register. This event may be full.");
+      setConfirmError(
+        e instanceof Error ? e.message : "Could not register. This event may be full.",
+      );
     } finally {
       setConfirming(false);
     }
@@ -163,9 +179,10 @@ function EventDetailPage() {
                   <Button
                     variant="outline"
                     className="flex-1 text-destructive hover:bg-destructive/10"
-                    onClick={() => unregisterEvent(event.id)}
+                    disabled={unregistering}
+                    onClick={handleUnregister}
                   >
-                    Cancel registration
+                    {unregistering ? "Cancelling…" : "Cancel registration"}
                   </Button>
                 </div>
               ) : (
@@ -175,7 +192,7 @@ function EventDetailPage() {
                   disabled={spotsLeft === 0}
                   onClick={startRegistration}
                 >
-                  {spotsLeft === 0 ? "Full — join waitlist soon" : ctaLabel}
+                  {spotsLeft === 0 ? "Fully Booked" : ctaLabel}
                 </Button>
               )}
             </div>
@@ -229,12 +246,18 @@ function EventDetailPage() {
               <Button variant="outline" className="flex-1" onClick={() => setStage("detail")}>
                 Back
               </Button>
-              <Button className="flex-1" disabled={!name.trim() || !phone.trim() || confirming} onClick={confirm}>
+              <Button
+                className="flex-1"
+                disabled={!name.trim() || !phone.trim() || confirming}
+                onClick={confirm}
+              >
                 {confirming ? "Confirming…" : "Confirm"}
               </Button>
             </div>
             {confirmError ? (
-              <p className="mt-3 text-center text-xs font-semibold text-destructive">{confirmError}</p>
+              <p className="mt-3 text-center text-xs font-semibold text-destructive">
+                {confirmError}
+              </p>
             ) : null}
           </div>
         ) : null}
