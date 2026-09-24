@@ -15,6 +15,7 @@ import { AuthProvider } from "../lib/auth";
 import { CommunityProvider } from "../lib/community";
 import { WalletProvider } from "../lib/wallet";
 import { PaymentMethodsProvider } from "../lib/paymentMethods";
+import { NotificationsProvider } from "../lib/notifications";
 import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
@@ -132,13 +133,15 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <WalletProvider>
-          <PaymentMethodsProvider>
-            <CommunityProvider>
-              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-              <Outlet />
-            </CommunityProvider>
-            <Toaster position="top-center" richColors />
-          </PaymentMethodsProvider>
+          <NotificationsProvider>
+            <PaymentMethodsProvider>
+              <CommunityProvider>
+                {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+                <Outlet />
+              </CommunityProvider>
+              <Toaster position="top-center" richColors />
+            </PaymentMethodsProvider>
+          </NotificationsProvider>
         </WalletProvider>
       </AuthProvider>
     </QueryClientProvider>
