@@ -147,10 +147,35 @@ type VenueRow = {
   rating: number | null;
 };
 
-type PricingRow = { sport: string; price_per_slot: number; slot_duration_minutes: number };
+type PricingRow = {
+  sport: string;
+  price_per_slot: number;
+  slot_duration_minutes: number;
+  band_label?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+};
+
+const PRICING_SELECT =
+  "*, venue_pricing(sport, price_per_slot, slot_duration_minutes, band_label, start_time, end_time)";
+
+/** Owners price per slot (30/60/90/120 min); the UI says "/hour", so normalise. */
+function hourlyPrice(p: Pick<PricingRow, "price_per_slot" | "slot_duration_minutes">) {
+  const mins = p.slot_duration_minutes > 0 ? p.slot_duration_minutes : 60;
+  return Math.round((p.price_per_slot * 60) / mins);
+}
+
+/** "06:00:00" -> "6 AM", "18:30:00" -> "6:30 PM" */
+function fmtClock(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  const hour24 = (h ?? 0) % 24;
+  const suffix = hour24 >= 12 ? "PM" : "AM";
+  const display = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${display}${m ? `:${String(m).padStart(2, "0")}` : ""} ${suffix}`;
+}
 
 function rowToVenue(row: VenueRow, pricing: PricingRow[]): Venue {
-  const cheapest = pricing.length > 0 ? Math.min(...pricing.map((p) => p.price_per_slot)) : 0;
+  const cheapest = pricing.length > 0 ? Math.min(...pricing.map(hourlyPrice)) : 0;
   return {
     id: row.id,
     name: row.name,
@@ -169,6 +194,30 @@ function rowToVenue(row: VenueRow, pricing: PricingRow[]): Venue {
   };
 }
 
+/** One row per distinct (sport, band, hours, price) — a venue with several
+ *  courts of the same sport has identical bands per court, which would
+ *  otherwise show up as repeated rows. */
+function buildPriceRows(row: VenueRow, pricing: PricingRow[]): PriceRow[] {
+  const fallbackHours =
+    row.operating_hours?.open && row.operating_hours?.close
+      ? `${fmtClock(row.operating_hours.open)} – ${fmtClock(row.operating_hours.close)}`
+      : "All day";
+  const seen = new Map<string, PriceRow & { sortKey: string }>();
+  for (const p of pricing) {
+    const hours =
+      p.start_time && p.end_time ? `${fmtClock(p.start_time)} – ${fmtClock(p.end_time)}` : fallbackHours;
+    const slotType = p.band_label?.trim() || `${p.slot_duration_minutes} min slot`;
+    const pricePerHour = hourlyPrice(p);
+    const key = `${p.sport}|${slotType}|${hours}|${pricePerHour}`;
+    if (!seen.has(key)) {
+      seen.set(key, { sport: p.sport, slotType, hours, pricePerHour, sortKey: `${p.sport}|${p.start_time ?? ""}` });
+    }
+  }
+  return [...seen.values()]
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+    .map(({ sortKey: _sortKey, ...rest }) => rest);
+}
+
 function rowToDetail(row: VenueRow, pricing: PricingRow[]): VenueDetail {
   const venue = rowToVenue(row, pricing);
   const gallery = row.photos?.length
@@ -182,12 +231,7 @@ function rowToDetail(row: VenueRow, pricing: PricingRow[]): VenueDetail {
     openingHours: formatOpeningHours(row.operating_hours),
     gallery,
     amenities: (row.amenities ?? []) as Amenity[],
-    pricing: pricing.map((p) => ({
-      sport: p.sport,
-      slotType: `${p.slot_duration_minutes} min slot`,
-      hours: "6 AM – 11 PM",
-      pricePerHour: p.price_per_slot,
-    })),
+    pricing: buildPriceRows(row, pricing),
     reviews: [],
     reviewCount: 0,
   };
@@ -207,7 +251,7 @@ export type VenueFilterQuery = {
 export async function fetchVenues(filters: VenueFilterQuery = {}): Promise<VenueDetail[]> {
   let query = supabase
     .from("venues")
-    .select("*, venue_pricing(sport, price_per_slot, slot_duration_minutes)")
+    .select(PRICING_SELECT)
     .eq("is_active", true);
 
   if (filters.area) query = query.eq("area", filters.area);
@@ -261,7 +305,7 @@ export async function fetchSportVenueCounts(): Promise<Record<string, number>> {
 export async function fetchVenue(id: string): Promise<VenueDetail | undefined> {
   const { data, error } = await supabase
     .from("venues")
-    .select("*, venue_pricing(sport, price_per_slot, slot_duration_minutes)")
+    .select(PRICING_SELECT)
     .eq("id", id)
     .eq("is_active", true)
     .maybeSingle();
@@ -290,7 +334,18 @@ export async function fetchSlots(venueId: string, dateISO: string, sport: string
     return [];
   }
 
-  return (data ?? []).map((row) => {
+  // A venue can have several courts for one sport, each with its own row for
+  // the same start time. Show ONE chip per start time: bookable if any court
+  // is free (using that court's slot id and price), booked only if all are.
+  const byStart = new Map<string, NonNullable<typeof data>[number]>();
+  for (const row of data ?? []) {
+    const current = byStart.get(row.start_time);
+    if (!current || (current.status !== "available" && row.status === "available")) {
+      byStart.set(row.start_time, row);
+    }
+  }
+
+  return [...byStart.values()].map((row) => {
     const startHour = Number(row.start_time.slice(0, 2));
     return {
       id: row.id,
