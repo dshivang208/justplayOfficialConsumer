@@ -32,6 +32,10 @@ export const Route = createFileRoute("/venues/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { sport?: string | undefined } => {
+    const sport = search["sport"];
+    return { sport: typeof sport === "string" && sport ? sport : undefined };
+  },
   component: VenueDiscovery,
 });
 
@@ -44,7 +48,11 @@ const sortLabels: Record<SortKey, string> = {
 };
 
 function VenueDiscovery() {
-  const [filters, setFilters] = useState<VenueFilterState>(defaultFilters);
+  const { sport: sportFromUrl } = Route.useSearch();
+  const [filters, setFilters] = useState<VenueFilterState>({
+    ...defaultFilters,
+    sport: sportFromUrl ?? defaultFilters.sport,
+  });
   const [sort, setSort] = useState<SortKey>("distance");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [query, setQuery] = useState("");
@@ -94,7 +102,7 @@ function VenueDiscovery() {
       if (sort === "rating") return b.rating - a.rating;
       return a.distanceKm - b.distanceKm;
     });
-  }, [filters, sort, query]);
+  }, [allVenues, filters, sort, query]);
 
   return (
     <div className="flex min-h-screen flex-col">

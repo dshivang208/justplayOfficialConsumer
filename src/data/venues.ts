@@ -239,6 +239,25 @@ export async function fetchVenues(filters: VenueFilterQuery = {}): Promise<Venue
   return results;
 }
 
+/** Live number of active venues per sport (keyed by sport display name,
+ *  e.g. "Box Cricket"), tallied from `venues.sports_offered`. Used by the
+ *  landing page's "Sports You Love" cards. Returns {} on error so the UI can
+ *  hide the count rather than show a wrong one. */
+export async function fetchSportVenueCounts(): Promise<Record<string, number>> {
+  const { data, error } = await supabase.from("venues").select("sports_offered").eq("is_active", true);
+  if (error) {
+    console.error("fetchSportVenueCounts failed:", error.message);
+    return {};
+  }
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    // A venue counts once per sport even if the sport is listed twice.
+    const unique = new Set(((row as { sports_offered: string[] | null }).sports_offered ?? []).map((n) => n.trim()));
+    for (const name of unique) counts[name] = (counts[name] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export async function fetchVenue(id: string): Promise<VenueDetail | undefined> {
   const { data, error } = await supabase
     .from("venues")

@@ -14,7 +14,7 @@ import eventTournament from "@/assets/event-tournament.jpg";
 
 export type City = { id: string; name: string; state: string; live: boolean };
 
-export type Sport = { id: string; name: string; emoji: string; venueCount: number };
+export type Sport = { id: string; name: string; emoji: string };
 
 export type Venue = {
   id: string;
@@ -81,16 +81,16 @@ export const areas: string[] = [
 ];
 
 export const sports: Sport[] = [
-  { id: "cricket", name: "Cricket", emoji: "🏏", venueCount: 24 },
-  { id: "box-cricket", name: "Box Cricket", emoji: "🎯", venueCount: 18 },
-  { id: "football", name: "Football", emoji: "⚽", venueCount: 15 },
-  { id: "badminton", name: "Badminton", emoji: "🏸", venueCount: 31 },
-  { id: "tennis", name: "Tennis", emoji: "🎾", venueCount: 9 },
-  { id: "pickleball", name: "Pickleball", emoji: "🥒", venueCount: 6 },
-  { id: "basketball", name: "Basketball", emoji: "🏀", venueCount: 7 },
-  { id: "table-tennis", name: "Table Tennis", emoji: "🏓", venueCount: 12 },
-  { id: "swimming", name: "Swimming", emoji: "🏊", venueCount: 5 },
-  { id: "volleyball", name: "Volleyball", emoji: "🏐", venueCount: 4 },
+  { id: "cricket", name: "Cricket", emoji: "🏏" },
+  { id: "box-cricket", name: "Box Cricket", emoji: "🎯" },
+  { id: "football", name: "Football", emoji: "⚽" },
+  { id: "badminton", name: "Badminton", emoji: "🏸" },
+  { id: "tennis", name: "Tennis", emoji: "🎾" },
+  { id: "pickleball", name: "Pickleball", emoji: "🥒" },
+  { id: "basketball", name: "Basketball", emoji: "🏀" },
+  { id: "table-tennis", name: "Table Tennis", emoji: "🏓" },
+  { id: "swimming", name: "Swimming", emoji: "🏊" },
+  { id: "volleyball", name: "Volleyball", emoji: "🏐" },
 ];
 
 export const venues: Venue[] = [
