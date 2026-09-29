@@ -6,6 +6,7 @@ import { PageShell } from "@/components/jp/PageShell";
 import { Button } from "@/components/jp/Button";
 import { SportTag } from "@/components/jp/SportTag";
 import { formatDateLong } from "@/lib/booking";
+import { daysUntil } from "@/lib/games";
 import { useCommunity } from "@/lib/community";
 import { useAuth } from "@/lib/auth";
 
@@ -58,6 +59,7 @@ function EventDetailPage() {
 
   const registered = registeredEventIds.includes(event.id);
   const spotsLeft = Math.max(0, event.capacity - event.registered);
+  const past = daysUntil(event.dateISO) < 0;
   const ctaLabel = event.ctaType === "interest" ? "Register Interest" : "Register Now";
 
   const handleUnregister = async () => {
@@ -185,6 +187,10 @@ function EventDetailPage() {
                     {unregistering ? "Cancelling…" : "Cancel registration"}
                   </Button>
                 </div>
+              ) : past ? (
+                <p className="text-center text-sm font-semibold text-muted-foreground">
+                  This event has already happened.
+                </p>
               ) : (
                 <Button
                   size="lg"

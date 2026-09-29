@@ -7,7 +7,7 @@ import { ManageGameModal } from "@/components/jp/ManageGameModal";
 import { Button } from "@/components/jp/Button";
 import { SportTag } from "@/components/jp/SportTag";
 import { perHead, type GameMessage } from "@/data/community";
-import { gameTimeLabel, relativeDayLabel } from "@/lib/games";
+import { daysUntil, gameTimeLabel, relativeDayLabel } from "@/lib/games";
 import { formatDateLong, formatINR } from "@/lib/booking";
 import { useCommunity } from "@/lib/community";
 import { useAuth } from "@/lib/auth";
@@ -79,12 +79,14 @@ function GameDetailPage() {
   const pct = Math.min(100, Math.round((game.players.length / game.spotsTotal) * 100));
   const price = perHead(game);
   const cancelled = game.status === "cancelled";
+  const past = daysUntil(game.dateISO) < 0;
 
   const handleJoin = async () => {
     if (!isAuthenticated) {
       void navigate({ to: "/auth", search: { redirect: `/games/${game.id}` } });
       return;
     }
+    if (past) return; // button is disabled in this state; belt-and-braces
     try {
       if (game.joinPolicy === "approval") {
         await requestJoin(game.id);
@@ -149,7 +151,7 @@ function GameDetailPage() {
               </p>
             </div>
             <span className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs font-semibold text-accent">
-              {cancelled ? "Cancelled" : relativeDayLabel(game.dateISO)}
+              {cancelled ? "Cancelled" : past ? "Game over" : relativeDayLabel(game.dateISO)}
             </span>
           </div>
 
@@ -254,6 +256,10 @@ function GameDetailPage() {
               <p className="text-center text-sm font-semibold text-destructive">
                 This game was cancelled by the host.
               </p>
+            ) : past && !joined && !requested ? (
+              <p className="text-center text-sm font-semibold text-muted-foreground">
+                This game has already happened.
+              </p>
             ) : joined ? (
               <Button
                 variant="outline"
@@ -267,7 +273,12 @@ function GameDetailPage() {
                 Request sent — waiting on host approval
               </Button>
             ) : (
-              <Button className="w-full" size="lg" disabled={spotsLeft === 0} onClick={handleJoin}>
+              <Button
+                className="w-full"
+                size="lg"
+                disabled={spotsLeft === 0 || past}
+                onClick={handleJoin}
+              >
                 {spotsLeft === 0
                   ? "Full — join waitlist soon"
                   : game.joinPolicy === "approval"

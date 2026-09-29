@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, MapPin, Users } from "lucide-react";
 import type { CommunityEventDetail } from "@/data/community";
-import { relativeDayLabel } from "@/lib/games";
+import { daysUntil, relativeDayLabel } from "@/lib/games";
 import { Button } from "./Button";
 import { SportTag } from "./SportTag";
 
@@ -21,8 +21,13 @@ export function EventCard({
 }) {
   const spotsLeft = Math.max(0, event.capacity - event.registered);
   const full = spotsLeft === 0 && !registered;
+  const past = daysUntil(event.dateISO) < 0;
   return (
-    <article className="surface-card group flex flex-col overflow-hidden rounded-2xl transition-all hover:-translate-y-1 hover:border-primary/60">
+    <article
+      className={`surface-card group flex flex-col overflow-hidden rounded-2xl transition-all hover:-translate-y-1 hover:border-primary/60 ${
+        past && !registered ? "opacity-60" : ""
+      }`}
+    >
       <Link
         to="/events/$eventId"
         params={{ eventId: event.id }}
@@ -52,7 +57,7 @@ export function EventCard({
         </h3>
         <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           <CalendarDays className="h-3.5 w-3.5 text-primary" />
-          {relativeDayLabel(event.dateISO)} · {event.timeLabel}
+          {past ? "Event over" : relativeDayLabel(event.dateISO)} · {event.timeLabel}
         </p>
         <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" /> {event.venueName}, {event.area}
@@ -77,6 +82,10 @@ export function EventCard({
               <Link to="/events/$eventId" params={{ eventId: event.id }}>
                 Registered ✓
               </Link>
+            </Button>
+          ) : past ? (
+            <Button size="sm" variant="surface" disabled>
+              Event over
             </Button>
           ) : full ? (
             <Button size="sm" variant="surface" disabled>

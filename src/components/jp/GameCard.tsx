@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Clock, MapPin, Users } from "lucide-react";
 import type { Game } from "@/data/community";
 import { perHead } from "@/data/community";
-import { gameTimeLabel, relativeDayLabel } from "@/lib/games";
+import { daysUntil, gameTimeLabel, relativeDayLabel } from "@/lib/games";
 import { Button } from "./Button";
 import { SportTag } from "./SportTag";
 import { cn } from "@/lib/utils";
@@ -30,12 +30,13 @@ export function GameCard({
   const pct = Math.min(100, Math.round((filled / game.spotsTotal) * 100));
   const price = perHead(game);
   const cancelled = game.status === "cancelled";
+  const past = daysUntil(game.dateISO) < 0;
 
   return (
     <article
       className={cn(
         "surface-card flex flex-col gap-3 rounded-2xl p-4 transition-all hover:-translate-y-1 hover:border-primary/60",
-        cancelled && "opacity-60",
+        (cancelled || past) && "opacity-60",
         className,
       )}
     >
@@ -52,7 +53,7 @@ export function GameCard({
           </p>
         </div>
         <span className="rounded-lg border border-border px-2.5 py-1 text-[11px] font-semibold text-accent">
-          {cancelled ? "Cancelled" : relativeDayLabel(game.dateISO)}
+          {cancelled ? "Cancelled" : past ? "Game over" : relativeDayLabel(game.dateISO)}
         </span>
       </div>
 
@@ -124,14 +125,16 @@ export function GameCard({
             Requested
           </Button>
         ) : (
-          <Button size="sm" disabled={spotsLeft === 0 || cancelled} onClick={onJoin}>
+          <Button size="sm" disabled={spotsLeft === 0 || cancelled || past} onClick={onJoin}>
             {cancelled
               ? "Cancelled"
-              : spotsLeft === 0
-                ? "Full"
-                : game.joinPolicy === "approval"
-                  ? "Request to Join"
-                  : "Join Game"}
+              : past
+                ? "Game over"
+                : spotsLeft === 0
+                  ? "Full"
+                  : game.joinPolicy === "approval"
+                    ? "Request to Join"
+                    : "Join Game"}
           </Button>
         )}
       </div>
