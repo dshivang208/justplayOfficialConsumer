@@ -62,11 +62,15 @@ export type VenueDetail = Venue & {
   reviewCount: number;
 };
 
-/** Availability slot as returned by the `slots` table. */
+/** Availability slot as returned by the `slots` table.
+ *  Minutes-since-midnight (not just the hour) so venues with a shorter
+ *  minimum booking (e.g. 30 min) show each slot distinctly and can be
+ *  multi-selected correctly — see startMinutes/endMinutes below. */
 export type Slot = {
   id: string;
   label: string;
-  startHour: number;
+  startMinutes: number;
+  endMinutes: number;
   price: number;
   status: "available" | "booked";
 };
@@ -319,11 +323,17 @@ export async function fetchVenue(id: string): Promise<VenueDetail | undefined> {
   return rowToDetail(data as VenueRow, ((data as any).venue_pricing ?? []) as PricingRow[]);
 }
 
+/** "06:30:00" -> 390 */
+function toMinutes(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
+
 /** Real availability for one venue/date/sport, straight from `slots`. */
 export async function fetchSlots(venueId: string, dateISO: string, sport: string): Promise<Slot[]> {
   const { data, error } = await supabase
     .from("slots")
-    .select("id, start_time, price, status")
+    .select("id, start_time, end_time, price, status")
     .eq("venue_id", venueId)
     .eq("sport", sport)
     .eq("date", dateISO)
@@ -345,21 +355,41 @@ export async function fetchSlots(venueId: string, dateISO: string, sport: string
     }
   }
 
-  return [...byStart.values()].map((row) => {
-    const startHour = Number(row.start_time.slice(0, 2));
-    return {
-      id: row.id,
-      label: formatHour(startHour),
-      startHour,
-      price: row.price ?? 0,
-      status: row.status === "available" ? "available" : "booked",
-    } as Slot;
-  });
+  return [...byStart.values()]
+    .map((row) => {
+      const startMinutes = toMinutes(row.start_time);
+      let endMinutes = toMinutes(row.end_time);
+      // A slot generated across midnight (e.g. 23:30-00:00) has a smaller
+      // raw end-of-day time than its start; treat it as next-day minutes so
+      // duration/contiguity math (endMinutes - startMinutes) stays positive.
+      if (endMinutes <= startMinutes) endMinutes += 24 * 60;
+      return {
+        id: row.id,
+        label: formatSlotTime(startMinutes),
+        startMinutes,
+        endMinutes,
+        price: row.price ?? 0,
+        status: row.status === "available" ? "available" : "booked",
+      } as Slot;
+    })
+    .sort((a, b) => a.startMinutes - b.startMinutes);
 }
 
+/** Whole-hour label, e.g. "6 AM" slots elsewhere in the app (hosted games,
+ *  which are always hour blocks regardless of a venue's slot duration). */
 export function formatHour(h: number) {
   const hour = h % 24;
   const suffix = hour >= 12 ? "PM" : "AM";
   const display = hour % 12 === 0 ? 12 : hour % 12;
   return `${display}:00 ${suffix}`;
+}
+
+/** Minute-precise label for a real booking slot, e.g. "6:00 AM" / "6:30 AM". */
+export function formatSlotTime(minutes: number) {
+  const m = ((minutes % 1440) + 1440) % 1440;
+  const hour = Math.floor(m / 60);
+  const min = m % 60;
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const display = hour % 12 === 0 ? 12 : hour % 12;
+  return min === 0 ? `${display}:00 ${suffix}` : `${display}:${String(min).padStart(2, "0")} ${suffix}`;
 }

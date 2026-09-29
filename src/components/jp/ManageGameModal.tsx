@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Check, Trash2, X } from "lucide-react";
 import type { Game, GameMessage, SkillLevel } from "@/data/community";
 import { skillLevels } from "@/data/community";
-import { fetchSlots, formatHour, type Slot } from "@/data/venues";
+import { fetchSlots, formatSlotTime, type Slot } from "@/data/venues";
 import { formatDateLong } from "@/lib/booking";
 import { useCommunity } from "@/lib/community";
 import { Button } from "./Button";
@@ -47,7 +47,13 @@ export function ManageGameModal({
   const [dateISO, setDateISO] = useState(game.dateISO);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  const [selectedStartHour, setSelectedStartHour] = useState<number | null>(game.startHour);
+  // The picker below re-selects a slot from the (possibly shorter-than-an-
+  // hour) real availability grid; keep it in minutes so two slots that
+  // share an hour (e.g. 6:00 and 6:30) are distinguishable, then round out
+  // to an hour block when saving — hosted games are always hour blocks.
+  const [selectedStartMinutes, setSelectedStartMinutes] = useState<number | null>(
+    game.startHour * 60,
+  );
   const [savingDetails, setSavingDetails] = useState(false);
 
   useEffect(() => {
@@ -66,12 +72,17 @@ export function ManageGameModal({
       toast.error(`Total spots can't be less than the ${minSpots} player(s) already in this game.`);
       return;
     }
-    if (!gameStarted && dateISO !== game.dateISO && selectedStartHour === null) {
+    if (!gameStarted && dateISO !== game.dateISO && selectedStartMinutes === null) {
       toast.error("Pick an available slot for the new date first.");
       return;
     }
     setSavingDetails(true);
     try {
+      // Hosted games are always hour blocks — round the selected (possibly
+      // half-hour) slot down to the hour it starts in.
+      const rescheduledStartHour = Math.floor(
+        (selectedStartMinutes ?? game.startHour * 60) / 60,
+      );
       await updateGameDetails(game.id, {
         spotsTotal: spotsNum,
         skillLevel,
@@ -80,8 +91,8 @@ export function ManageGameModal({
           ? {}
           : {
               dateISO,
-              startHour: selectedStartHour ?? game.startHour,
-              endHour: (selectedStartHour ?? game.startHour) + 1,
+              startHour: rescheduledStartHour,
+              endHour: rescheduledStartHour + 1,
             }),
       });
       toast.success("Game details updated");
@@ -288,7 +299,7 @@ export function ManageGameModal({
                     value={dateISO}
                     onChange={(e) => {
                       setDateISO(e.target.value);
-                      setSelectedStartHour(null);
+                      setSelectedStartMinutes(null);
                     }}
                     className="mt-1.5 h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-primary"
                   />
@@ -306,12 +317,12 @@ export function ManageGameModal({
                       {slots.map((s) => (
                         <Chip
                           key={s.id}
-                          active={selectedStartHour === s.startHour}
+                          active={selectedStartMinutes === s.startMinutes}
                           onClick={() =>
-                            s.status === "available" && setSelectedStartHour(s.startHour)
+                            s.status === "available" && setSelectedStartMinutes(s.startMinutes)
                           }
                         >
-                          {formatHour(s.startHour)}
+                          {formatSlotTime(s.startMinutes)}
                           {s.status !== "available" ? " · booked" : ""}
                         </Chip>
                       ))}

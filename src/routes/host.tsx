@@ -6,7 +6,7 @@ import { Button } from "@/components/jp/Button";
 import { SlotGrid, SlotLegend } from "@/components/jp/booking/SlotGrid";
 import { SportTag } from "@/components/jp/SportTag";
 import { EmptyState } from "@/components/jp/states";
-import { fetchVenues, fetchSlots, formatHour, type Slot, type VenueDetail } from "@/data/venues";
+import { fetchVenues, fetchSlots, formatHour, formatSlotTime, type Slot, type VenueDetail } from "@/data/venues";
 import { sports } from "@/data/landing";
 import { upcomingDays, formatDateLong, formatINR, isContiguous } from "@/lib/booking";
 import { skillLevels, type SkillLevel } from "@/data/community";
@@ -151,15 +151,18 @@ function HostGamePage() {
     setPublishing(true);
     setPublishError(null);
     try {
-      const sorted = [...selected].sort((a, b) => a.startHour - b.startHour);
+      // Hosted games are always hour blocks (see lib/community.tsx), even
+      // for a venue whose real booking slots are shorter — round the
+      // selected minute-precise range out to whole hours.
+      const sorted = [...selected].sort((a, b) => a.startMinutes - b.startMinutes);
       const game = await hostGame({
         sport,
         venueId: venue.id,
         venueName: venue.name,
         area: venue.area,
         dateISO,
-        startHour: sorted[0]!.startHour,
-        endHour: sorted[sorted.length - 1]!.startHour + 1,
+        startHour: Math.floor(sorted[0]!.startMinutes / 60),
+        endHour: Math.ceil(sorted[sorted.length - 1]!.endMinutes / 60),
         spotsTotal,
         skillLevel,
         costMode,
@@ -424,8 +427,8 @@ function HostGamePage() {
                   label="Time"
                   value={
                     selected.length
-                      ? `${formatHour(Math.min(...selected.map((s) => s.startHour)))} – ${formatHour(
-                          Math.max(...selected.map((s) => s.startHour)) + 1,
+                      ? `${formatSlotTime(Math.min(...selected.map((s) => s.startMinutes)))} – ${formatSlotTime(
+                          Math.max(...selected.map((s) => s.endMinutes)),
                         )}`
                       : "—"
                   }
@@ -451,8 +454,8 @@ function HostGamePage() {
               <dl className="mt-5 space-y-2 text-sm">
                 <Row
                   label="Time"
-                  value={`${formatHour(Math.min(...selected.map((s) => s.startHour)))} – ${formatHour(
-                    Math.max(...selected.map((s) => s.startHour)) + 1,
+                  value={`${formatSlotTime(Math.min(...selected.map((s) => s.startMinutes)))} – ${formatSlotTime(
+                    Math.max(...selected.map((s) => s.endMinutes)),
                   )}`}
                 />
                 <Row label="Spots" value={`${spotsTotal} players`} />

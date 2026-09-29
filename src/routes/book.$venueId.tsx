@@ -14,11 +14,12 @@ import {
   SummaryStep,
   type PaymentMethod,
 } from "@/components/jp/booking/steps";
-import { fetchSlots, fetchVenue, formatHour, type Slot } from "@/data/venues";
+import { fetchSlots, fetchVenue, formatSlotTime, type Slot } from "@/data/venues";
 import {
   calculatePrice,
   displayBookingId,
   formatDateLong,
+  formatDuration,
   formatINR,
   isContiguous,
   slotRangeLabel,
@@ -113,7 +114,7 @@ function BookingFlow() {
   const creditApplied = Math.max(0, Math.min(balance, breakdown.total));
   const payableTotal = Math.max(0, breakdown.total - creditApplied);
   const sortedSelected = useMemo(
-    () => [...selected].sort((a, b) => a.startHour - b.startHour),
+    () => [...selected].sort((a, b) => a.startMinutes - b.startMinutes),
     [selected],
   );
 
@@ -214,14 +215,18 @@ function BookingFlow() {
     }
   };
 
-  const timeLabel = slotRangeLabel(sortedSelected, formatHour);
+  const timeLabel = slotRangeLabel(sortedSelected, formatSlotTime);
 
   const calendarHref = useMemo(() => {
     if (sortedSelected.length === 0) return "#";
     const pad = (n: number) => String(n).padStart(2, "0");
+    const toClock = (mins: number) => {
+      const wrapped = mins % 1440;
+      return `${pad(Math.floor(wrapped / 60))}${pad(wrapped % 60)}00`;
+    };
     const d = date.replace(/-/g, "");
-    const start = `${d}T${pad(sortedSelected[0]!.startHour)}0000`;
-    const end = `${d}T${pad(sortedSelected[sortedSelected.length - 1]!.startHour + 1)}0000`;
+    const start = `${d}T${toClock(sortedSelected[0]!.startMinutes)}`;
+    const end = `${d}T${toClock(sortedSelected[sortedSelected.length - 1]!.endMinutes)}`;
     const ics = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
@@ -273,7 +278,7 @@ function BookingFlow() {
               <div>
                 <h2 className="text-2xl leading-none">Pick your slot</h2>
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  {sport} · {formatDateLong(date)} · select one or more back-to-back hours
+                  {sport} · {formatDateLong(date)} · select one or more back-to-back slots
                 </p>
               </div>
               <SlotLegend />
@@ -393,7 +398,7 @@ function BookingFlow() {
                     {formatINR(payableTotal)}
                   </p>
                   <p className="truncate text-[11px] text-muted-foreground">
-                    {timeLabel} · {breakdown.slotCount} hr
+                    {timeLabel} · {formatDuration(breakdown.durationMinutes)}
                   </p>
                 </>
               ) : (

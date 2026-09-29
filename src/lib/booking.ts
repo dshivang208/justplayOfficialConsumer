@@ -4,6 +4,10 @@ export const PLATFORM_FEE_RATE = 0.05;
 
 export type PriceBreakdown = {
   slotCount: number;
+  /** Total booked duration in minutes — NOT slotCount * 60. A venue can set
+   *  a shorter minimum booking (e.g. 30 min), so this is the real sum of
+   *  each selected slot's own duration. */
+  durationMinutes: number;
   basePrice: number;
   platformFee: number;
   gst: number;
@@ -12,10 +16,12 @@ export type PriceBreakdown = {
 
 export function calculatePrice(slots: Slot[]): PriceBreakdown {
   const basePrice = slots.reduce((sum, s) => sum + s.price, 0);
+  const durationMinutes = slots.reduce((sum, s) => sum + (s.endMinutes - s.startMinutes), 0);
   const platformFee = Math.round(basePrice * PLATFORM_FEE_RATE);
   const gst = Math.round((basePrice + platformFee) * 0.18);
   return {
     slotCount: slots.length,
+    durationMinutes,
     basePrice,
     platformFee,
     gst,
@@ -23,20 +29,31 @@ export function calculatePrice(slots: Slot[]): PriceBreakdown {
   };
 }
 
+/** "90" -> "1 hr 30 min"; "60" -> "1 hr"; "30" -> "30 min". */
+export function formatDuration(totalMinutes: number) {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} hr`;
+  return `${h} hr ${m} min`;
+}
+
 export function formatINR(amount: number) {
   return `₹${amount.toLocaleString("en-IN")}`;
 }
 
-/** Slots must be contiguous hours to form one booking window. */
+/** Slots must be back-to-back (this one's end === the next one's start) to
+ *  form a single booking window — duration-aware, so it works whether the
+ *  venue's minimum booking is 30, 60, or 90 minutes. */
 export function isContiguous(slots: Slot[]) {
-  const hours = slots.map((s) => s.startHour).sort((a, b) => a - b);
-  return hours.every((h, i) => i === 0 || h === hours[i - 1]! + 1);
+  const sorted = [...slots].sort((a, b) => a.startMinutes - b.startMinutes);
+  return sorted.every((s, i) => i === 0 || s.startMinutes === sorted[i - 1]!.endMinutes);
 }
 
-export function slotRangeLabel(slots: Slot[], formatHour: (h: number) => string) {
+export function slotRangeLabel(slots: Slot[], formatSlotTime: (minutes: number) => string) {
   if (slots.length === 0) return "";
-  const sorted = [...slots].sort((a, b) => a.startHour - b.startHour);
-  return `${formatHour(sorted[0]!.startHour)} – ${formatHour(sorted[sorted.length - 1]!.startHour + 1)}`;
+  const sorted = [...slots].sort((a, b) => a.startMinutes - b.startMinutes);
+  return `${formatSlotTime(sorted[0]!.startMinutes)} – ${formatSlotTime(sorted[sorted.length - 1]!.endMinutes)}`;
 }
 
 /** Next N days starting today, for the date picker. */

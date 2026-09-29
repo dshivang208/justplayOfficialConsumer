@@ -1,6 +1,12 @@
 import { Check, Smartphone, CreditCard, Landmark, ChevronDown, Gift } from "lucide-react";
 import type { Slot, VenueDetail } from "@/data/venues";
-import { formatDateLong, formatINR, upcomingDays, type PriceBreakdown } from "@/lib/booking";
+import {
+  formatDateLong,
+  formatDuration,
+  formatINR,
+  upcomingDays,
+  type PriceBreakdown,
+} from "@/lib/booking";
 import { cn } from "@/lib/utils";
 
 export const stepTitles = ["Sport & date", "Time slot", "Summary", "Payment", "Confirmed"];
@@ -165,7 +171,7 @@ export function PriceCard({
       </h3>
       <div className="flex flex-col gap-2 text-sm">
         <Row
-          label={`Slot charges (${breakdown.slotCount} hr)`}
+          label={`Slot charges (${formatDuration(breakdown.durationMinutes)})`}
           value={formatINR(breakdown.basePrice)}
         />
         <Row label="Platform fee (5%)" value={formatINR(breakdown.platformFee)} />
