@@ -61,9 +61,11 @@ Deno.serve(async (req) => {
 
   const payment = event?.payload?.payment?.entity;
   const bookingId: string | undefined = payment?.notes?.booking_id;
+  const registrationId: string | undefined = payment?.notes?.event_registration_id;
 
   await adminClient.from("payment_events").insert({
     booking_id: bookingId ?? null,
+    event_registration_id: registrationId ?? null,
     source: "webhook",
     razorpay_event: event?.event ?? "unknown",
     payload: event,
@@ -82,9 +84,26 @@ Deno.serve(async (req) => {
     }
   }
 
+  if (event.event === "payment.captured" && registrationId && payment?.id) {
+    const { error } = await adminClient.rpc("mark_event_registration_confirmed", {
+      p_registration_id: registrationId,
+      p_payment_id: payment.id,
+    });
+    if (error) {
+      console.error("Webhook mark_event_registration_confirmed failed:", error.message);
+    }
+  }
+
   if (event.event === "payment.failed" && bookingId) {
     const { error } = await adminClient.rpc("release_failed_booking", { p_booking_id: bookingId });
     if (error) console.error("Webhook release_failed_booking failed:", error.message);
+  }
+
+  if (event.event === "payment.failed" && registrationId) {
+    const { error } = await adminClient.rpc("release_failed_event_registration", {
+      p_registration_id: registrationId,
+    });
+    if (error) console.error("Webhook release_failed_event_registration failed:", error.message);
   }
 
   // Razorpay only cares about the 2xx — always acknowledge once verified.

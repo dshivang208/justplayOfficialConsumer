@@ -122,3 +122,70 @@ export async function payForBooking(params: {
     razorpay.open();
   });
 }
+
+export type PayForEventResult =
+  | { status: "confirmed"; registrationId: string }
+  | { status: "cancelled" };
+
+/**
+ * Same flow as payForBooking, for a paid event/tournament registration:
+ *   create-razorpay-order-event -> open Checkout -> on success,
+ *   verify-razorpay-payment-event
+ * `start_event_registration` (the spot-reserving RPC) must already have
+ * been called BEFORE this — this function only handles taking payment for
+ * a registration that already exists in 'pending' state.
+ */
+export async function payForEventRegistration(params: {
+  registrationId: string;
+  userName?: string;
+  userPhone?: string;
+  userEmail?: string;
+}): Promise<PayForEventResult> {
+  const order = await callEdgeFunction<{
+    fullyCoveredByCredit?: boolean;
+    orderId?: string;
+    amount?: number;
+    currency?: string;
+    keyId?: string;
+  }>("create-razorpay-order-event", { registration_id: params.registrationId });
+
+  if (order.fullyCoveredByCredit) {
+    // Shouldn't happen in practice (start_event_registration refuses free
+    // events), but handle it rather than crash if it ever does.
+    return { status: "confirmed", registrationId: params.registrationId };
+  }
+
+  await loadRazorpayScript();
+
+  const prefill: { name?: string; contact?: string; email?: string } = {};
+  if (params.userName) prefill.name = params.userName;
+  if (params.userPhone) prefill.contact = params.userPhone;
+  if (params.userEmail) prefill.email = params.userEmail;
+
+  return new Promise((resolve, reject) => {
+    const razorpay = new window.Razorpay!({
+      key: order.keyId!,
+      amount: order.amount!,
+      currency: order.currency!,
+      order_id: order.orderId!,
+      name: "JustPlay",
+      description: "Event registration",
+      prefill,
+      theme: { color: "#16a34a" },
+      handler: (response) => {
+        void callEdgeFunction("verify-razorpay-payment-event", {
+          registration_id: params.registrationId,
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature,
+        })
+          .then(() => resolve({ status: "confirmed", registrationId: params.registrationId }))
+          .catch(reject);
+      },
+      modal: {
+        ondismiss: () => resolve({ status: "cancelled" }),
+      },
+    });
+    razorpay.open();
+  });
+}

@@ -7,6 +7,7 @@ import { Button } from "@/components/jp/Button";
 import { SportTag } from "@/components/jp/SportTag";
 import { formatDateLong } from "@/lib/booking";
 import { daysUntil } from "@/lib/games";
+import { payForEventRegistration } from "@/lib/razorpay";
 import { useCommunity } from "@/lib/community";
 import { useAuth } from "@/lib/auth";
 
@@ -34,7 +35,16 @@ function EventDetailPage() {
   const { eventId } = Route.useParams();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
-  const { getEvent, registeredEventIds, registerEvent, unregisterEvent, loading } = useCommunity();
+  const {
+    getEvent,
+    registeredEventIds,
+    registerEvent,
+    unregisterEvent,
+    startEventRegistration,
+    releaseEventRegistration,
+    refresh,
+    loading,
+  } = useCommunity();
 
   const [stage, setStage] = useState<"detail" | "confirm" | "done">("detail");
   const [name, setName] = useState(user?.name ?? "");
@@ -88,7 +98,42 @@ function EventDetailPage() {
     setConfirming(true);
     setConfirmError(null);
     try {
-      await registerEvent(event.id);
+      if (event.entryFee === 0) {
+        // Free entry / "Register Interest" — no payment step at all.
+        await registerEvent(event.id);
+        setStage("done");
+        return;
+      }
+
+      // Paid event/tournament: reserve the spot, then actually collect
+      // payment via Razorpay before this counts as registered.
+      const { registrationId } = await startEventRegistration(event.id);
+      let result: Awaited<ReturnType<typeof payForEventRegistration>>;
+      try {
+        result = await payForEventRegistration({
+          registrationId,
+          userName: name,
+          userPhone: phone,
+        });
+      } catch (payErr) {
+        // Payment step itself blew up (network error, gateway down, etc.) —
+        // release the reserved spot rather than leave it stuck as 'pending'.
+        await releaseEventRegistration(registrationId).catch(() => {});
+        throw payErr;
+      }
+
+      if (result.status === "cancelled") {
+        // User closed the Razorpay modal without paying — release the spot
+        // so it doesn't sit reserved (and block others) forever.
+        await releaseEventRegistration(registrationId);
+        setConfirmError("Payment was not completed, so your spot wasn't reserved.");
+        return;
+      }
+
+      // The Edge Function confirmed the registration server-side just now —
+      // pick that up so "Registered ✓" is correct the moment the person
+      // navigates away from this "done" screen.
+      await refresh();
       setStage("done");
     } catch (e) {
       setConfirmError(
@@ -244,7 +289,7 @@ function EventDetailPage() {
               <div className="rounded-xl bg-secondary p-3.5 text-sm text-muted-foreground">
                 {event.entryFee === 0
                   ? "This event is free — no payment needed."
-                  : `Entry fee: ₹${event.entryFee.toLocaleString("en-IN")} ${event.feeUnit}. Payment collected at the venue.`}
+                  : `Entry fee: ₹${event.entryFee.toLocaleString("en-IN")} ${event.feeUnit}. You'll pay securely on the next step.`}
               </div>
             </div>
 
@@ -257,7 +302,13 @@ function EventDetailPage() {
                 disabled={!name.trim() || !phone.trim() || confirming}
                 onClick={confirm}
               >
-                {confirming ? "Confirming…" : "Confirm"}
+                {confirming
+                  ? event.entryFee > 0
+                    ? "Opening payment…"
+                    : "Confirming…"
+                  : event.entryFee > 0
+                    ? `Pay ₹${event.entryFee.toLocaleString("en-IN")} & Register`
+                    : "Confirm"}
               </Button>
             </div>
             {confirmError ? (
@@ -290,6 +341,11 @@ function EventDetailPage() {
                     ["Venue", `${event.venueName}, ${event.area}`],
                     ["Name", name],
                     ["Phone", phone],
+                    ...(event.entryFee > 0
+                      ? ([["Amount paid", `₹${event.entryFee.toLocaleString("en-IN")}`]] as Array<
+                          [string, string]
+                        >)
+                      : []),
                   ] as Array<[string, string]>
                 ).map(([k, v]) => (
                   <div key={k} className="flex items-start justify-between gap-4">

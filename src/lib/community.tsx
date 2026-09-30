@@ -81,6 +81,13 @@ type CommunityContextValue = {
   createGroup: (input: CreateGroupInput) => Promise<Group>;
   registerEvent: (id: string) => Promise<void>;
   unregisterEvent: (id: string) => Promise<void>;
+  /** Reserves a spot for a PAID event ('pending' row, server-priced from
+   *  entry_fee) as the first step before opening Razorpay Checkout —
+   *  mirrors create_booking's role in the venue-booking flow. Throws
+   *  EVENT_IS_FREE if the event has no entry fee (use registerEvent). */
+  startEventRegistration: (id: string) => Promise<{ registrationId: string; amount: number }>;
+  /** Frees a reserved spot when Checkout is dismissed or payment fails. */
+  releaseEventRegistration: (registrationId: string) => Promise<void>;
   myGames: Game[];
   myGroups: Group[];
   gamesForGroup: (groupId: string) => Game[];
@@ -368,8 +375,15 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // 'confirmed' only — a 'pending' row is a payment still in progress
+    // (shouldn't show as "Registered" yet) and a 'cancelled' row is a past
+    // abandoned/failed payment attempt (shouldn't block a fresh retry).
     const { data: regRows } = user
-      ? await supabase.from("event_registrations").select("event_id").eq("user_id", user.id)
+      ? await supabase
+          .from("event_registrations")
+          .select("event_id")
+          .eq("user_id", user.id)
+          .eq("status", "confirmed")
       : { data: [] as { event_id: string }[] };
 
     const mapped: CommunityEventDetail[] = (rows ?? []).map((row: any) => {
@@ -730,6 +744,31 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     [loadEvents],
   );
 
+  const startEventRegistration = useCallback(
+    async (id: string) => {
+      const { data, error } = await supabase.rpc("start_event_registration", { p_event_id: id });
+      if (error) throw new Error(error.message);
+      const row = data as { id: string; amount_paid: number };
+      // Reserving the spot changes participant_count for everyone viewing
+      // this event, so refresh now — payment confirmation (or a release on
+      // cancel) refreshes it again afterward.
+      await loadEvents();
+      return { registrationId: row.id, amount: row.amount_paid };
+    },
+    [loadEvents],
+  );
+
+  const releaseEventRegistration = useCallback(
+    async (registrationId: string) => {
+      const { error } = await supabase.rpc("release_failed_event_registration", {
+        p_registration_id: registrationId,
+      });
+      if (error) throw new Error(error.message);
+      await loadEvents();
+    },
+    [loadEvents],
+  );
+
   const unregisterEvent = useCallback(
     async (id: string) => {
       const { error } = await supabase.rpc("unregister_from_event", { p_event_id: id });
@@ -773,6 +812,8 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       createGroup,
       registerEvent,
       unregisterEvent,
+      startEventRegistration,
+      releaseEventRegistration,
       myGames: games.filter((g) => g.isMine),
       myGroups: groups.filter((g) => joinedGroupIds.includes(g.id)),
       gamesForGroup: (groupId) =>
@@ -809,6 +850,8 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       createGroup,
       registerEvent,
       unregisterEvent,
+      startEventRegistration,
+      releaseEventRegistration,
       refresh,
     ],
   );

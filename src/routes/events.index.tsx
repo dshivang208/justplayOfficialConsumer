@@ -40,14 +40,22 @@ function EventsPage() {
   const { events, registeredEventIds, registerEvent } = useCommunity();
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const handleRegister = async (eventId: string) => {
+  const handleRegister = async (event: CommunityEventDetail) => {
+    // A paid event needs the Razorpay checkout step, which lives on the
+    // event's own detail page — a list card is the wrong place to open a
+    // payment modal. Only free entry / "Register Interest" events register
+    // instantly, right from the card.
+    if (event.entryFee > 0) {
+      void navigate({ to: "/events/$eventId", params: { eventId: event.id } });
+      return;
+    }
     if (!isAuthenticated) {
       void navigate({ to: "/auth", search: { redirect: "/events" } });
       return;
     }
-    setBusyId(eventId);
+    setBusyId(event.id);
     try {
-      await registerEvent(eventId);
+      await registerEvent(event.id);
       toast.success("You're registered!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't register for this event.");
@@ -148,7 +156,7 @@ function EventsPage() {
                   event={ev}
                   registered={registeredEventIds.includes(ev.id)}
                   registering={busyId === ev.id}
-                  onRegister={() => handleRegister(ev.id)}
+                  onRegister={() => handleRegister(ev)}
                 />
               ))}
             </div>

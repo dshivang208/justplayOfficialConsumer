@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ArrowRight, Trophy } from "lucide-react";
+import type { CommunityEventDetail } from "@/data/community";
 import { useCommunity } from "@/lib/community";
 import { useAuth } from "@/lib/auth";
 import { Section, SectionHeading } from "./SectionHeading";
@@ -20,14 +21,22 @@ export function EventsSection() {
   // links to /events for the full, filterable list.
   const upcoming = events.slice(0, 4);
 
-  const handleRegister = async (eventId: string) => {
+  const handleRegister = async (event: CommunityEventDetail) => {
+    // A paid event needs the Razorpay checkout step, which lives on the
+    // event's own detail page — a homepage card is the wrong place to open
+    // a payment modal. Only free entry / "Register Interest" events
+    // register instantly, right from the card.
+    if (event.entryFee > 0) {
+      void navigate({ to: "/events/$eventId", params: { eventId: event.id } });
+      return;
+    }
     if (!isAuthenticated) {
       void navigate({ to: "/auth", search: { redirect: "/" } });
       return;
     }
-    setBusyId(eventId);
+    setBusyId(event.id);
     try {
-      await registerEvent(eventId);
+      await registerEvent(event.id);
       toast.success("You're registered!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't register for this event.");
@@ -67,7 +76,7 @@ export function EventsSection() {
               event={ev}
               registered={registeredEventIds.includes(ev.id)}
               registering={busyId === ev.id}
-              onRegister={() => handleRegister(ev.id)}
+              onRegister={() => handleRegister(ev)}
             />
           ))}
         </div>
