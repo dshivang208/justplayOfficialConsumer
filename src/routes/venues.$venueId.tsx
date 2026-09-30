@@ -250,13 +250,13 @@ function VenueDetailPage() {
 
             <section>
               <h2 className="mb-3 text-2xl leading-none">Similar venues nearby</h2>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
                 {similar.map((v) => (
                   <Link
                     key={v.id}
                     to="/venues/$venueId"
                     params={{ venueId: v.id }}
-                    className="surface-card overflow-hidden rounded-xl transition-colors hover:border-primary/60"
+                    className="surface-card w-40 shrink-0 snap-start overflow-hidden rounded-xl transition-colors hover:border-primary/60 sm:w-52"
                   >
                     <img
                       src={v.image}
