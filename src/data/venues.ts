@@ -160,8 +160,16 @@ type PricingRow = {
   end_time?: string | null;
 };
 
-const PRICING_SELECT =
-  "*, venue_pricing(sport, price_per_slot, slot_duration_minutes, band_label, start_time, end_time)";
+// NOT `"*"` — the venues table also holds business-sensitive columns
+// (legal_business_name, gst_number, pending_name, pending_address) and
+// Admin-only columns (rejection_reason, approved_by, ...) that anon/
+// authenticated no longer have blanket SELECT on (see migration
+// 20260915000000_venues_private_columns.sql). This lists every column
+// Consumer is actually allowed — and needs — to read.
+const PRICING_SELECT = `id, name, address, city, latitude, longitude, sports_offered, amenities,
+  operating_hours, photos, is_active, tagline, about, area, rating, created_at, is_featured,
+  featured_order, venue_pricing(sport, price_per_slot, slot_duration_minutes, band_label,
+  start_time, end_time)`;
 
 /** Owners price per slot (30/60/90/120 min); the UI says "/hour", so normalise. */
 function hourlyPrice(p: Pick<PricingRow, "price_per_slot" | "slot_duration_minutes">) {
