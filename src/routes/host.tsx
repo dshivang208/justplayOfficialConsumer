@@ -279,7 +279,7 @@ function HostGamePage() {
           <section className="space-y-5">
             <div>
               <h2 className="text-2xl">Pick a date</h2>
-              <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
+              <div className="mt-3 flex gap-2 overflow-x-auto overscroll-x-contain pb-2">
                 {days.map((d) => (
                   <button
                     key={d.iso}

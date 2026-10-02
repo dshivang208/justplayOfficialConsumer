@@ -13,7 +13,7 @@ export const stepTitles = ["Sport & date", "Time slot", "Summary", "Payment", "C
 
 export function Stepper({ current }: { current: number }) {
   return (
-    <ol className="no-scrollbar flex items-center gap-2 overflow-x-auto">
+    <ol className="no-scrollbar flex items-center gap-2 overflow-x-auto overscroll-x-contain">
       {stepTitles.map((title, i) => {
         const done = i < current;
         const active = i === current;
@@ -84,7 +84,7 @@ export function SportDateStep({
 
       <div>
         <h2 className="text-2xl leading-none">Pick a date</h2>
-        <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
+        <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto overscroll-x-contain pb-1">
           {days.map((d) => (
             <button
               key={d.iso}

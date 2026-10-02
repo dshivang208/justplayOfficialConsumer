@@ -250,7 +250,7 @@ function VenueDetailPage() {
 
             <section>
               <h2 className="mb-3 text-2xl leading-none">Similar venues nearby</h2>
-              <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+              <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1 sm:mx-0 sm:px-0">
                 {similar.map((v) => (
                   <Link
                     key={v.id}

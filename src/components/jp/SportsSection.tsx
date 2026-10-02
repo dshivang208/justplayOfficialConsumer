@@ -32,7 +32,7 @@ export function SportsSection() {
         subtitle="Cricket ho ya pickleball — Kanpur ke best turfs aur courts, ek jagah."
       />
 
-      <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 md:grid-cols-5">
+      <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 md:grid-cols-5">
         {sports.map((sport) => {
           const label = counts === null ? null : countLabel(counts[sport.name] ?? 0);
           return (
