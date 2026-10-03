@@ -135,7 +135,7 @@ function VenueDetailPage() {
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
-          <div className="flex flex-col gap-5">
+          <div className="flex min-w-0 flex-col gap-5">
             <header>
               <div className="flex flex-wrap items-center gap-2">
                 {venue.sports.map((s) => (
