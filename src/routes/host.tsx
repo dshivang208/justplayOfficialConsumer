@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Check, MapPin, Search, Star } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, MapPin, Search } from "lucide-react";
+import { RatingBadge } from "@/components/jp/VenueCard";
 import { PageShell, PageHeader, Chip } from "@/components/jp/PageShell";
 import { Button } from "@/components/jp/Button";
 import { SlotGrid, SlotLegend } from "@/components/jp/booking/SlotGrid";
@@ -256,9 +257,7 @@ function HostGamePage() {
                             <MapPin className="h-3 w-3" /> {v.area} · {v.distanceKm} km
                           </p>
                           <p className="mt-1 flex items-center gap-2 text-xs font-semibold">
-                            <span className="inline-flex items-center gap-1 text-accent">
-                              <Star className="h-3 w-3 fill-current" /> {v.rating}
-                            </span>
+                            <RatingBadge rating={v.rating} />
                             <span className="text-foreground">
                               {formatINR(v.pricePerHour)}
                               <span className="font-medium text-muted-foreground">/hr</span>

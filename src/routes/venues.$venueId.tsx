@@ -6,8 +6,23 @@ import { Button } from "@/components/jp/Button";
 import { SportTag } from "@/components/jp/SportTag";
 import { VenueMap } from "@/components/jp/VenueMap";
 import { useEffect, useState } from "react";
-import { fetchVenue, fetchVenues, type VenueDetail } from "@/data/venues";
+import {
+  fetchVenue,
+  fetchVenues,
+  fetchReviews,
+  fetchMoreReviews,
+  getMyReviewStatus,
+  submitReview,
+  deleteReview,
+  formatReviewDate,
+  type VenueDetail,
+  type Review,
+  type ReviewEligibility,
+} from "@/data/venues";
+import { RatingBadge } from "@/components/jp/VenueCard";
 import { formatINR } from "@/lib/booking";
+import { useAuth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/venues/$venueId")({
   loader: async ({ params }) => {
@@ -86,8 +101,35 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
+/** Tap-to-rate 1–5 stars. */
+function StarRatingInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-1" role="radiogroup" aria-label="Rating">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          role="radio"
+          aria-checked={value === n}
+          aria-label={`${n} star${n === 1 ? "" : "s"}`}
+          onClick={() => onChange(n)}
+          className="p-0.5"
+        >
+          <Star
+            className={cn(
+              "h-7 w-7 transition-colors",
+              n <= value ? "fill-accent text-accent" : "fill-transparent text-muted-foreground",
+            )}
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function VenueDetailPage() {
   const { venue } = Route.useLoaderData();
+  const { user, isAuthenticated } = useAuth();
   const [cover, ...rest] = venue.gallery;
   const [similar, setSimilar] = useState<VenueDetail[]>([]);
 
@@ -100,6 +142,97 @@ function VenueDetailPage() {
       active = false;
     };
   }, [venue.id]);
+
+  // --- Reviews ------------------------------------------------------------
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [hasMoreReviews, setHasMoreReviews] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [eligibility, setEligibility] = useState<ReviewEligibility>({
+    canReview: false,
+    existingRating: null,
+    existingBody: null,
+  });
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [formRating, setFormRating] = useState(0);
+  const [formBody, setFormBody] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const viewerId = user?.id ?? null;
+    fetchReviews(venue.id, viewerId).then(({ reviews: r, hasMore }) => {
+      if (!active) return;
+      setReviews(r);
+      setHasMoreReviews(hasMore);
+    });
+    if (isAuthenticated) {
+      getMyReviewStatus(venue.id).then((status) => {
+        if (!active) return;
+        setEligibility(status);
+        if (status.existingRating != null) {
+          setFormRating(status.existingRating);
+          setFormBody(status.existingBody ?? "");
+        }
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, [venue.id, user?.id, isAuthenticated]);
+
+  const handleShowMoreReviews = async () => {
+    setLoadingMore(true);
+    try {
+      const { reviews: more, hasMore } = await fetchMoreReviews(venue.id, reviews.length, user?.id ?? null);
+      setReviews((prev) => [...prev, ...more]);
+      setHasMoreReviews(hasMore);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const refreshReviews = async () => {
+    const { reviews: r, hasMore } = await fetchReviews(venue.id, user?.id ?? null);
+    setReviews(r);
+    setHasMoreReviews(hasMore);
+  };
+
+  const handleSubmitReview = async () => {
+    if (formRating === 0) {
+      setReviewError("Pick a star rating first.");
+      return;
+    }
+    setSubmittingReview(true);
+    setReviewError(null);
+    try {
+      await submitReview(venue.id, formRating, formBody);
+      await refreshReviews();
+      setEligibility((prev) => ({ ...prev, existingRating: formRating, existingBody: formBody || null }));
+      setShowReviewForm(false);
+    } catch (e) {
+      setReviewError(e instanceof Error ? e.message : "Could not submit your review.");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async () => {
+    setSubmittingReview(true);
+    setReviewError(null);
+    try {
+      await deleteReview(venue.id);
+      await refreshReviews();
+      setEligibility((prev) => ({ ...prev, existingRating: null, existingBody: null }));
+      setFormRating(0);
+      setFormBody("");
+      setShowReviewForm(false);
+    } catch (e) {
+      setReviewError(e instanceof Error ? e.message : "Could not delete your review.");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   return (
     <div className="min-h-screen pb-24 lg:pb-0">
@@ -154,10 +287,12 @@ function VenueDetailPage() {
               <h1 className="mt-3 text-4xl leading-none sm:text-5xl">{venue.name}</h1>
               <p className="mt-2 text-sm text-muted-foreground">{venue.tagline}</p>
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1 font-bold text-accent">
-                  <Star className="h-3.5 w-3.5 fill-current" /> {venue.rating}
+                <span className="inline-flex items-center gap-1.5">
+                  <RatingBadge rating={venue.rating} iconClassName="h-3.5 w-3.5" />
                   <span className="font-medium text-muted-foreground">
-                    ({venue.reviewCount} reviews)
+                    {venue.rating != null
+                      ? `(${venue.reviewCount} ${venue.reviewCount === 1 ? "review" : "reviews"})`
+                      : "No reviews yet"}
                   </span>
                 </span>
                 <span className="inline-flex items-center gap-1">
@@ -228,24 +363,100 @@ function VenueDetailPage() {
 
             <Card title="Reviews">
               <div className="flex flex-col gap-4">
-                {venue.reviews.map((r) => (
-                  <div key={r.id} className="border-b border-border pb-4 last:border-0 last:pb-0">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                        {r.initials}
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold">{r.name}</p>
-                        <p className="text-[11px] text-muted-foreground">{r.date}</p>
+                {reviews.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No reviews yet — be the first to share how it went.
+                  </p>
+                ) : (
+                  reviews.map((r) => (
+                    <div key={r.id} className="border-b border-border pb-4 last:border-0 last:pb-0">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                          {r.initials}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">
+                            {r.authorName}
+                            {r.isMine && (
+                              <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
+                                (you)
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {formatReviewDate(r.createdAt)}
+                          </p>
+                        </div>
+                        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-bold text-accent">
+                          <Star className="h-3.5 w-3.5 fill-current" /> {r.rating}.0
+                        </span>
                       </div>
-                      <span className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-accent">
-                        <Star className="h-3.5 w-3.5 fill-current" /> {r.rating}.0
-                      </span>
+                      {r.body && (
+                        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{r.body}</p>
+                      )}
                     </div>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{r.text}</p>
-                  </div>
-                ))}
+                  ))
+                )}
+
+                {hasMoreReviews && (
+                  <Button variant="outline" size="sm" disabled={loadingMore} onClick={handleShowMoreReviews}>
+                    {loadingMore ? "Loading…" : "Show more reviews"}
+                  </Button>
+                )}
               </div>
+
+              {isAuthenticated && eligibility.canReview && (
+                <div className="mt-5 border-t border-border pt-4">
+                  {!showReviewForm ? (
+                    <Button variant="outline" size="sm" onClick={() => setShowReviewForm(true)}>
+                      {eligibility.existingRating != null ? "Edit your review" : "Write a review"}
+                    </Button>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <p className="mb-1.5 text-sm font-semibold text-foreground">Your rating</p>
+                        <StarRatingInput value={formRating} onChange={setFormRating} />
+                      </div>
+                      <textarea
+                        value={formBody}
+                        maxLength={1000}
+                        onChange={(e) => setFormBody(e.target.value)}
+                        placeholder="How was it? (optional)"
+                        rows={3}
+                        className="w-full resize-none rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-foreground outline-none focus:border-primary"
+                      />
+                      {reviewError && <p className="text-sm text-destructive">{reviewError}</p>}
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" disabled={submittingReview} onClick={handleSubmitReview}>
+                          {submittingReview ? "Saving…" : "Submit review"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={submittingReview}
+                          onClick={() => {
+                            setShowReviewForm(false);
+                            setReviewError(null);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        {eligibility.existingRating != null && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="ml-auto text-destructive"
+                            disabled={submittingReview}
+                            onClick={handleDeleteReview}
+                          >
+                            Delete review
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </Card>
 
             <section>

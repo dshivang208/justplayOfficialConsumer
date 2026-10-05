@@ -16,17 +16,12 @@ export type City = { id: string; name: string; state: string; live: boolean };
 
 export type Sport = { id: string; name: string; emoji: string };
 
-export type Venue = {
-  id: string;
-  name: string;
-  area: string;
-  image: string;
-  sports: string[];
-  pricePerHour: number;
-  distanceKm: number;
-  rating: number;
-  isOpenNow: boolean;
-};
+// Single source of truth for Venue lives in data/venues.ts (the real
+// Supabase-backed module) — this used to be its own separate, slowly
+// drifting copy left over from before that module existed (it was missing
+// latitude/longitude, and still called rating a plain `number`, hiding
+// that a venue with no reviews yet has no real rating at all).
+export type { Venue } from "@/data/venues";
 
 export type HostedGame = {
   id: string;
@@ -91,75 +86,6 @@ export const sports: Sport[] = [
   { id: "table-tennis", name: "Table Tennis", emoji: "🏓" },
   { id: "swimming", name: "Swimming", emoji: "🏊" },
   { id: "volleyball", name: "Volleyball", emoji: "🏐" },
-];
-
-export const venues: Venue[] = [
-  {
-    id: "v1",
-    name: "Greenfield Box Arena",
-    area: "Kakadeo",
-    image: venueBoxCricket,
-    sports: ["Box Cricket", "Football"],
-    pricePerHour: 900,
-    distanceKm: 2.4,
-    rating: 4.6,
-    isOpenNow: true,
-  },
-  {
-    id: "v2",
-    name: "Smash Point Badminton",
-    area: "Swaroop Nagar",
-    image: venueBadminton,
-    sports: ["Badminton", "Table Tennis"],
-    pricePerHour: 450,
-    distanceKm: 3.1,
-    rating: 4.8,
-    isOpenNow: true,
-  },
-  {
-    id: "v3",
-    name: "Ganga Sports Club",
-    area: "Civil Lines",
-    image: venueTennis,
-    sports: ["Tennis", "Pickleball"],
-    pricePerHour: 700,
-    distanceKm: 5.2,
-    rating: 4.4,
-    isOpenNow: false,
-  },
-  {
-    id: "v4",
-    name: "Turf 11 Kalyanpur",
-    area: "Kalyanpur",
-    image: venueBoxCricket,
-    sports: ["Football", "Box Cricket"],
-    pricePerHour: 1100,
-    distanceKm: 6.8,
-    rating: 4.7,
-    isOpenNow: true,
-  },
-  {
-    id: "v5",
-    name: "Panki Play Factory",
-    area: "Panki",
-    image: venueBadminton,
-    sports: ["Badminton", "Basketball"],
-    pricePerHour: 500,
-    distanceKm: 8.3,
-    rating: 4.2,
-    isOpenNow: true,
-  },
-  {
-    id: "v6",
-    name: "Barra Court Complex",
-    area: "Barra",
-    image: venueTennis,
-    sports: ["Pickleball", "Tennis"],
-    pricePerHour: 600,
-    distanceKm: 9.1,
-    rating: 4.5,
-    isOpenNow: false,
-  },
 ];
 
 export const featuredHostedGame: HostedGame = {

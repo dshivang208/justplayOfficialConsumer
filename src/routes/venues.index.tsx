@@ -99,7 +99,10 @@ function VenueDiscovery() {
     });
     return filtered.sort((a, b) => {
       if (sort === "price") return a.pricePerHour - b.pricePerHour;
-      if (sort === "rating") return b.rating - a.rating;
+      // Unrated (new) venues sort to the end when explicitly sorting by
+      // rating — never let "no reviews yet" outrank a genuinely low rating,
+      // but also never let it beat a well-reviewed venue by accident.
+      if (sort === "rating") return (b.rating ?? -1) - (a.rating ?? -1);
       return a.distanceKm - b.distanceKm;
     });
   }, [allVenues, filters, sort, query]);

@@ -33,7 +33,8 @@ export type Venue = {
   sports: string[];
   pricePerHour: number;
   distanceKm: number;
-  rating: number;
+  /** null = no reviews yet. Never fabricate a number here. */
+  rating: number | null;
   isOpenNow: boolean;
   latitude: number | null;
   longitude: number | null;
@@ -43,12 +44,30 @@ export type PriceRow = { sport: string; slotType: string; hours: string; pricePe
 
 export type Review = {
   id: string;
-  name: string;
+  authorName: string;
   initials: string;
   rating: number;
-  date: string;
-  text: string;
+  body: string | null;
+  createdAt: string;
+  /** True only when this row belongs to the signed-in viewer — lets the UI
+   *  offer "Edit" instead of showing it as just another review. */
+  isMine: boolean;
 };
+
+export type ReviewEligibility = {
+  /** Has a COMPLETED booking at this venue — the only people allowed to
+   *  write a review, enforced again server-side either way. */
+  canReview: boolean;
+  existingRating: number | null;
+  existingBody: string | null;
+};
+
+function initialsFor(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
 
 export type VenueDetail = Venue & {
   tagline: string;
@@ -149,6 +168,7 @@ type VenueRow = {
   about: string | null;
   area: string | null;
   rating: number | null;
+  review_count: number;
 };
 
 type PricingRow = {
@@ -167,9 +187,9 @@ type PricingRow = {
 // 20260915000000_venues_private_columns.sql). This lists every column
 // Consumer is actually allowed — and needs — to read.
 const PRICING_SELECT = `id, name, address, city, latitude, longitude, sports_offered, amenities,
-  operating_hours, photos, is_active, tagline, about, area, rating, created_at, is_featured,
-  featured_order, venue_pricing(sport, price_per_slot, slot_duration_minutes, band_label,
-  start_time, end_time)`;
+  operating_hours, photos, is_active, tagline, about, area, rating, review_count, created_at,
+  is_featured, featured_order, venue_pricing(sport, price_per_slot, slot_duration_minutes,
+  band_label, start_time, end_time)`;
 
 /** Owners price per slot (30/60/90/120 min); the UI says "/hour", so normalise. */
 function hourlyPrice(p: Pick<PricingRow, "price_per_slot" | "slot_duration_minutes">) {
@@ -199,7 +219,7 @@ function rowToVenue(row: VenueRow, pricing: PricingRow[]): Venue {
       row.latitude != null && row.longitude != null
         ? Math.round(haversineKm(row.latitude, row.longitude) * 10) / 10
         : 2.5,
-    rating: row.rating ?? 4.5,
+    rating: row.rating,
     isOpenNow: isOpenNow(row.operating_hours),
     latitude: row.latitude,
     longitude: row.longitude,
@@ -245,7 +265,7 @@ function rowToDetail(row: VenueRow, pricing: PricingRow[]): VenueDetail {
     amenities: (row.amenities ?? []) as Amenity[],
     pricing: buildPriceRows(row, pricing),
     reviews: [],
-    reviewCount: 0,
+    reviewCount: row.review_count ?? 0,
   };
 }
 
@@ -400,4 +420,124 @@ export function formatSlotTime(minutes: number) {
   const suffix = hour >= 12 ? "PM" : "AM";
   const display = hour % 12 === 0 ? 12 : hour % 12;
   return min === 0 ? `${display}:00 ${suffix}` : `${display}:${String(min).padStart(2, "0")} ${suffix}`;
+}
+// ============================================================================
+// Reviews
+// ============================================================================
+
+type ReviewRow = {
+  id: string;
+  user_id: string;
+  author_name: string;
+  rating: number;
+  body: string | null;
+  created_at: string;
+};
+
+const REVIEW_PAGE_SIZE = 5;
+
+function mapReviewRow(row: ReviewRow, viewerId: string | null): Review {
+  return {
+    id: row.id,
+    authorName: row.author_name,
+    initials: initialsFor(row.author_name),
+    rating: row.rating,
+    body: row.body,
+    createdAt: row.created_at,
+    isMine: viewerId != null && row.user_id === viewerId,
+  };
+}
+
+/** First page of a venue's reviews, newest first. Pair with fetchMoreReviews
+ *  for a "Show more" control rather than loading every review up front —
+ *  a popular venue can have hundreds. `viewerId` (the signed-in user's own
+ *  id, if any) only affects the `isMine` flag on each row, nothing else. */
+export async function fetchReviews(
+  venueId: string,
+  viewerId: string | null,
+): Promise<{ reviews: Review[]; hasMore: boolean }> {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("id, user_id, author_name, rating, body, created_at")
+    .eq("venue_id", venueId)
+    .order("created_at", { ascending: false })
+    .range(0, REVIEW_PAGE_SIZE); // one extra row, used only to detect "more"
+
+  if (error) {
+    console.error("fetchReviews failed:", error.message);
+    return { reviews: [], hasMore: false };
+  }
+  const rows = (data ?? []) as ReviewRow[];
+  const hasMore = rows.length > REVIEW_PAGE_SIZE;
+  return { reviews: rows.slice(0, REVIEW_PAGE_SIZE).map((r) => mapReviewRow(r, viewerId)), hasMore };
+}
+
+/** Next page, for "Show more". `offset` is how many reviews are already
+ *  shown (i.e. pass reviews.length so far). */
+export async function fetchMoreReviews(
+  venueId: string,
+  offset: number,
+  viewerId: string | null,
+): Promise<{ reviews: Review[]; hasMore: boolean }> {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("id, user_id, author_name, rating, body, created_at")
+    .eq("venue_id", venueId)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + REVIEW_PAGE_SIZE);
+
+  if (error) {
+    console.error("fetchMoreReviews failed:", error.message);
+    return { reviews: [], hasMore: false };
+  }
+  const rows = (data ?? []) as ReviewRow[];
+  const hasMore = rows.length > REVIEW_PAGE_SIZE;
+  return { reviews: rows.slice(0, REVIEW_PAGE_SIZE).map((r) => mapReviewRow(r, viewerId)), hasMore };
+}
+
+/** Can the signed-in user review this venue (do they have a completed
+ *  booking there), and do they already have a review (so the UI should
+ *  offer to edit it instead of starting blank)? Returns all-false/null
+ *  for a signed-out visitor rather than throwing. */
+export async function getMyReviewStatus(venueId: string): Promise<ReviewEligibility> {
+  const { data, error } = await supabase.rpc("my_review_status", { p_venue_id: venueId }).maybeSingle<{
+    can_review: boolean;
+    existing_rating: number | null;
+    existing_body: string | null;
+  }>();
+  if (error || !data) {
+    if (error) console.error("getMyReviewStatus failed:", error.message);
+    return { canReview: false, existingRating: null, existingBody: null };
+  }
+  return { canReview: data.can_review, existingRating: data.existing_rating, existingBody: data.existing_body };
+}
+
+const REVIEW_ERRORS: Record<string, string> = {
+  AUTH_REQUIRED: "Please sign in to leave a review.",
+  INVALID_RATING: "Pick a star rating from 1 to 5.",
+  REVIEW_TOO_LONG: "That review is a bit long — please keep it under 1000 characters.",
+  NOT_ELIGIBLE: "You can review a venue after you've completed a booking there.",
+};
+
+/** Creates or updates the signed-in user's own review for this venue.
+ *  Server-side, this is refused unless they have a COMPLETED booking
+ *  there — this call can fail even when the UI thought they were
+ *  eligible, if that changed in between. */
+export async function submitReview(venueId: string, rating: number, body: string): Promise<void> {
+  const { error } = await supabase.rpc("submit_review", {
+    p_venue_id: venueId,
+    p_rating: rating,
+    p_body: body,
+  });
+  if (error) throw new Error(REVIEW_ERRORS[error.message] ?? error.message);
+}
+
+export async function deleteReview(venueId: string): Promise<void> {
+  const { error } = await supabase.rpc("delete_review", { p_venue_id: venueId });
+  if (error) throw new Error(error.message);
+}
+
+/** "2026-09-30T12:00:00Z" -> "30 Sep 2026" */
+export function formatReviewDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }

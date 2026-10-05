@@ -4,6 +4,28 @@ import type { Venue } from "@/data/landing";
 import { cn } from "@/lib/utils";
 import { SportTag } from "./SportTag";
 
+/** A venue with no reviews yet has no real rating — showing a fabricated
+ *  number would be dishonest, so this renders "New" instead whenever
+ *  `rating` is null, everywhere a venue's rating is shown. */
+export function RatingBadge({
+  rating,
+  className,
+  iconClassName = "h-3 w-3",
+}: {
+  rating: number | null;
+  className?: string;
+  iconClassName?: string;
+}) {
+  if (rating == null) {
+    return <span className={cn("text-xs font-semibold text-muted-foreground", className)}>New</span>;
+  }
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-xs font-bold text-accent", className)}>
+      <Star className={cn(iconClassName, "fill-current")} /> {rating}
+    </span>
+  );
+}
+
 function OpenBadge({ isOpenNow, className }: { isOpenNow: boolean; className?: string }) {
   return (
     <span
@@ -50,9 +72,7 @@ export function VenueCard({
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <div className="flex items-start justify-between gap-2">
             <h3 className="truncate text-base leading-tight sm:text-lg">{venue.name}</h3>
-            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-accent">
-              <Star className="h-3 w-3 fill-current" /> {venue.rating}
-            </span>
+            <RatingBadge rating={venue.rating} className="shrink-0" />
           </div>
           <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <MapPin className="h-3.5 w-3.5" /> {venue.area} · {venue.distanceKm} km
@@ -95,9 +115,10 @@ export function VenueCard({
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         <OpenBadge isOpenNow={venue.isOpenNow} className="absolute left-3 top-3" />
-        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-background/85 px-2.5 py-1 text-[11px] font-bold text-accent backdrop-blur">
-          <Star className="h-3 w-3 fill-current" /> {venue.rating}
-        </span>
+        <RatingBadge
+          rating={venue.rating}
+          className="absolute right-3 top-3 rounded-full bg-background/85 px-2.5 py-1 text-[11px] backdrop-blur"
+        />
       </div>
 
       <div className="flex flex-1 flex-col gap-2.5 p-3.5">
