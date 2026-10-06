@@ -94,7 +94,7 @@ function VenueNotFound() {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="surface-card rounded-2xl p-4 sm:p-5">
+    <section className="surface-card min-w-0 max-w-full overflow-hidden rounded-2xl p-4 sm:p-5">
       <h2 className="mb-3 text-2xl leading-none">{title}</h2>
       {children}
     </section>
@@ -128,6 +128,9 @@ function StarRatingInput({ value, onChange }: { value: number; onChange: (n: num
 }
 
 function VenueDetailPage() {
+  // Mobile layout: keep the route constrained to the viewport so no child
+  // component can create a page-level horizontal overflow/zoom requirement.
+
   const { venue } = Route.useLoaderData();
   const { user, isAuthenticated } = useAuth();
   const [cover, ...rest] = venue.gallery;
@@ -235,10 +238,10 @@ function VenueDetailPage() {
   };
 
   return (
-    <div className="min-h-screen pb-24 lg:pb-0">
+    <div className="min-h-screen w-full min-w-0 max-w-full overflow-x-hidden pb-24 lg:pb-0">
       <Navbar />
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <main className="mx-auto w-full min-w-0 max-w-6xl overflow-x-hidden px-4 py-6 sm:px-6">
         <Link
           to="/venues"
           className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary"
@@ -247,7 +250,7 @@ function VenueDetailPage() {
         </Link>
 
         {/* Gallery */}
-        <div className="grid gap-2 sm:grid-cols-4 sm:grid-rows-2">
+        <div className="grid w-full min-w-0 max-w-full gap-2 sm:grid-cols-4 sm:grid-rows-2">
           <div className="overflow-hidden rounded-2xl sm:col-span-2 sm:row-span-2">
             <img
               src={cover}
@@ -286,8 +289,8 @@ function VenueDetailPage() {
               </div>
               <h1 className="mt-3 text-4xl leading-none sm:text-5xl">{venue.name}</h1>
               <p className="mt-2 text-sm text-muted-foreground">{venue.tagline}</p>
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
+              <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+                <span className="inline-flex min-w-0 items-center gap-1.5">
                   <RatingBadge rating={venue.rating} iconClassName="h-3.5 w-3.5" />
                   <span className="font-medium text-muted-foreground">
                     {venue.rating != null
@@ -295,10 +298,10 @@ function VenueDetailPage() {
                       : "No reviews yet"}
                   </span>
                 </span>
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex min-w-0 items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" /> {venue.area} · {venue.distanceKm} km
                 </span>
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex min-w-0 items-center gap-1">
                   <Clock className="h-3.5 w-3.5" /> {venue.openingHours}
                 </span>
               </div>
@@ -329,7 +332,7 @@ function VenueDetailPage() {
                   navbar against the now-zoomed page — a separate mobile-
                   browser quirk, not something to chase here). A stacked
                   layout needs neither: every field is just visible. */}
-              <div className="flex flex-col gap-2 sm:hidden">
+              <div className="flex min-w-0 flex-col gap-2 sm:hidden">
                 {venue.pricing.map((p, i) => (
                   <div
                     key={i}
@@ -538,7 +541,7 @@ function VenueDetailPage() {
       </main>
 
       {/* Mobile sticky CTA */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 w-full max-w-full overflow-hidden border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <div>
             <p className="text-lg font-bold leading-none">{formatINR(venue.pricePerHour)}</p>
