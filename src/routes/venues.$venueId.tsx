@@ -322,7 +322,34 @@ function VenueDetailPage() {
             </Card>
 
             <Card title="Pricing">
-              <div className="overflow-x-auto">
+              {/* Below sm: a four-column table never comfortably fits a phone
+                  screen — it either forces a tiny, undiscoverable sideways
+                  scroll inside the card, or tempts the person into pinch-
+                  zooming out (which then visually misaligns the sticky
+                  navbar against the now-zoomed page — a separate mobile-
+                  browser quirk, not something to chase here). A stacked
+                  layout needs neither: every field is just visible. */}
+              <div className="flex flex-col gap-2 sm:hidden">
+                {venue.pricing.map((p, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 px-3 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{p.sport}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {p.slotType} · {p.hours}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-bold">
+                      {formatINR(p.pricePerHour)}
+                      <span className="font-medium text-muted-foreground">/hr</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto sm:block">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-border text-[11px] uppercase tracking-wider text-muted-foreground">
