@@ -5,6 +5,7 @@ import { Footer } from "@/components/jp/Footer";
 import { Button } from "@/components/jp/Button";
 import { SportTag } from "@/components/jp/SportTag";
 import { VenueMap } from "@/components/jp/VenueMap";
+import { VenueGroupCard } from "@/components/jp/VenueGroupCard";
 import { useEffect, useState } from "react";
 import {
   fetchVenue,
@@ -307,6 +308,8 @@ function VenueDetailPage() {
             <Card title="About this venue">
               <p className="text-sm leading-relaxed text-muted-foreground">{venue.about}</p>
             </Card>
+
+            <VenueGroupCard venueId={venue.id} venueName={venue.name} />
 
             <Card title="Amenities">
               <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
