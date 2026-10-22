@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, CalendarPlus, CheckCircle2, Loader2, Ticket } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Navbar } from "@/components/jp/Navbar";
 import { useAuth } from "@/lib/auth";
 import { useWallet } from "@/lib/wallet";
@@ -14,7 +15,7 @@ import {
   SummaryStep,
   type PaymentMethod,
 } from "@/components/jp/booking/steps";
-import { fetchSlots, fetchVenue, formatSlotTime, type Slot } from "@/data/venues";
+import { fetchCourts, fetchSlots, fetchVenue, formatSlotTime, type Court, type Slot } from "@/data/venues";
 import {
   calculatePrice,
   displayBookingId,
@@ -96,11 +97,39 @@ function BookingFlow() {
   const [bookingId, setBookingId] = useState("");
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(true);
+  const [courts, setCourts] = useState<Court[]>([]);
+  const [courtsLoaded, setCourtsLoaded] = useState(false);
+  const [courtId, setCourtId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
+    fetchCourts(venue.id).then((next) => {
+      if (!active) return;
+      setCourts(next);
+      setCourtsLoaded(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [venue.id]);
+
+  // Turfs for the chosen sport. Default to the first so slots show right away;
+  // with a single turf there is nothing to pick and the picker stays hidden.
+  const sportCourts = useMemo(() => courts.filter((c) => c.sport === sport), [courts, sport]);
+  useEffect(() => {
+    if (sportCourts.length === 0) {
+      setCourtId(null);
+    } else if (!sportCourts.some((c) => c.id === courtId)) {
+      setCourtId(sportCourts[0]!.id);
+    }
+  }, [sportCourts, courtId]);
+  const activeCourt = sportCourts.find((c) => c.id === courtId) ?? null;
+
+  useEffect(() => {
+    if (!courtsLoaded) return;
+    let active = true;
     setSlotsLoading(true);
-    fetchSlots(venue.id, date, sport).then((next) => {
+    fetchSlots(venue.id, date, sport, activeCourt?.id ?? null).then((next) => {
       if (!active) return;
       setSlots(next);
       setSlotsLoading(false);
@@ -108,7 +137,7 @@ function BookingFlow() {
     return () => {
       active = false;
     };
-  }, [venue.id, date, sport]);
+  }, [venue.id, date, sport, activeCourt?.id, courtsLoaded]);
 
   const breakdown = useMemo(() => calculatePrice(selected), [selected]);
   const creditApplied = Math.max(0, Math.min(balance, breakdown.total));
@@ -278,9 +307,35 @@ function BookingFlow() {
               <div>
                 <h2 className="text-2xl leading-none">Pick your slot</h2>
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  {sport} · {formatDateLong(date)} · select one or more back-to-back slots
+                  {sport}
+                  {activeCourt ? ` · ${activeCourt.name}` : ""} · {formatDateLong(date)} · select one or more back-to-back slots
                 </p>
               </div>
+              {sportCourts.length > 1 ? (
+                <div>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Choose your turf
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {sportCourts.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        aria-pressed={c.id === courtId}
+                        onClick={() => resetSlots(() => setCourtId(c.id))}
+                        className={cn(
+                          "rounded-xl border px-4 py-2 text-xs font-semibold transition-all",
+                          c.id === courtId
+                            ? "border-primary bg-primary text-primary-foreground shadow-[var(--shadow-glow)]"
+                            : "border-border bg-surface text-foreground hover:border-primary hover:text-primary",
+                        )}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <SlotLegend />
               {slotsLoading ? (
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
@@ -306,6 +361,7 @@ function BookingFlow() {
               slots={sortedSelected}
               breakdown={breakdown}
               creditApplied={creditApplied}
+              courtName={activeCourt?.name ?? null}
             />
           ) : null}
 
@@ -348,6 +404,7 @@ function BookingFlow() {
                       ["Venue", venue.name],
                       ["Address", venue.address],
                       ["Sport", sport],
+                      ...(activeCourt ? ([["Turf", activeCourt.name]] as Array<[string, string]>) : []),
                       ["Date", formatDateLong(date)],
                       ["Time", timeLabel],
                       ...(creditApplied > 0

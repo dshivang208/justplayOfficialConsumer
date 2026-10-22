@@ -92,7 +92,22 @@ export type Slot = {
   endMinutes: number;
   price: number;
   status: "available" | "booked";
+  /** Which turf/court this slot belongs to (null for legacy slots). */
+  courtId?: string | null;
 };
+
+export type Court = { id: string; name: string; sport: string };
+
+/** Active turfs/courts a venue offers, via the narrow `venue_courts` RPC.
+ *  Returns [] on error so the booking flow falls back to sport-only. */
+export async function fetchCourts(venueId: string): Promise<Court[]> {
+  const { data, error } = await supabase.rpc("venue_courts", { p_venue_id: venueId });
+  if (error) {
+    console.error("fetchCourts failed:", error.message);
+    return [];
+  }
+  return (data ?? []) as Court[];
+}
 
 const galleryPool = [
   heroTurf,
@@ -358,23 +373,29 @@ function toMinutes(t: string) {
 }
 
 /** Real availability for one venue/date/sport, straight from `slots`. */
-export async function fetchSlots(venueId: string, dateISO: string, sport: string): Promise<Slot[]> {
-  const { data, error } = await supabase
+export async function fetchSlots(
+  venueId: string,
+  dateISO: string,
+  sport: string,
+  courtId?: string | null,
+): Promise<Slot[]> {
+  let query = supabase
     .from("slots")
-    .select("id, start_time, end_time, price, status")
+    .select("id, start_time, end_time, price, status, court_id")
     .eq("venue_id", venueId)
     .eq("sport", sport)
-    .eq("date", dateISO)
-    .order("start_time", { ascending: true });
+    .eq("date", dateISO);
+  if (courtId) query = query.eq("court_id", courtId);
+  const { data, error } = await query.order("start_time", { ascending: true });
 
   if (error) {
     console.error("fetchSlots failed:", error.message);
     return [];
   }
 
-  // A venue can have several courts for one sport, each with its own row for
-  // the same start time. Show ONE chip per start time: bookable if any court
-  // is free (using that court's slot id and price), booked only if all are.
+  // With a court chosen there is exactly one row per start time. Without one
+  // (legacy / courts unavailable) fall back to one chip per start time:
+  // bookable if any court is free, booked only if all are.
   const byStart = new Map<string, NonNullable<typeof data>[number]>();
   for (const row of data ?? []) {
     const current = byStart.get(row.start_time);
@@ -398,6 +419,7 @@ export async function fetchSlots(venueId: string, dateISO: string, sport: string
         endMinutes,
         price: row.price ?? 0,
         status: row.status === "available" ? "available" : "booked",
+        courtId: row.court_id ?? null,
       } as Slot;
     })
     .sort((a, b) => a.startMinutes - b.startMinutes);

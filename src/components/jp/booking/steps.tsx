@@ -120,6 +120,7 @@ export function SummaryStep({
   slots,
   breakdown,
   creditApplied = 0,
+  courtName,
 }: {
   venue: VenueDetail;
   sport: string;
@@ -127,11 +128,13 @@ export function SummaryStep({
   slots: Slot[];
   breakdown: PriceBreakdown;
   creditApplied?: number;
+  courtName?: string | null;
 }) {
   const rows: Array<[string, string]> = [
     ["Venue", venue.name],
     ["Area", `${venue.area}, Kanpur`],
     ["Sport", sport],
+    ...(courtName ? ([["Turf", courtName]] as Array<[string, string]>) : []),
     ["Date", formatDateLong(date)],
     ["Slots", slots.map((s) => s.label).join(", ")],
   ];
