@@ -293,6 +293,17 @@ export type VenueFilterQuery = {
   amenities?: string[];
 };
 
+/** Admin-featured rows first (in the admin's chosen order), everyone else
+ *  after, keeping their original relative order. */
+export function featuredFirst<T extends { is_featured?: boolean | null; featured_order?: number | null }>(
+  rows: T[],
+): T[] {
+  const featured = rows
+    .filter((r) => r.is_featured)
+    .sort((a, b) => (a.featured_order ?? Number.MAX_SAFE_INTEGER) - (b.featured_order ?? Number.MAX_SAFE_INTEGER));
+  return [...featured, ...rows.filter((r) => !r.is_featured)];
+}
+
 /** Venue discovery — filters run server-side where cheap to (text/sport/area),
  *  price/distance/amenities (derived client-side values) filter after fetch. */
 export async function fetchVenues(filters: VenueFilterQuery = {}): Promise<VenueDetail[]> {
@@ -312,7 +323,7 @@ export async function fetchVenues(filters: VenueFilterQuery = {}): Promise<Venue
     return [];
   }
 
-  let results = (data ?? []).map((row: any) =>
+  let results = featuredFirst((data ?? []) as any[]).map((row: any) =>
     rowToDetail(row as VenueRow, (row.venue_pricing ?? []) as PricingRow[]),
   );
 

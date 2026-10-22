@@ -7,6 +7,7 @@
  * simple and always consistent with the server, which is what actually
  * matters once counters can only move through those functions.
  */
+import { featuredFirst } from "@/data/venues";
 import {
   createContext,
   useCallback,
@@ -195,7 +196,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const loadGames = useCallback(async () => {
-    const { data: rows, error } = await supabase
+    const { data: rawRows, error } = await supabase
       .from("hosted_games")
       .select("*, venues(name, area)")
       .order("date", { ascending: true });
@@ -203,6 +204,8 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       console.error("load hosted_games failed:", error.message);
       return;
     }
+    // Admin-featured games first (Content → Featured), rest by date.
+    const rows = featuredFirst(rawRows ?? []);
     const gameIds = (rows ?? []).map((r) => r.id);
     const { data: participantRows } = gameIds.length
       ? await supabase
@@ -282,7 +285,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const loadGroups = useCallback(async () => {
-    const { data: rows, error } = await supabase
+    const { data: rawRows, error } = await supabase
       .from("groups")
       .select("*")
       .order("member_count", { ascending: false });
@@ -290,6 +293,8 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       console.error("load groups failed:", error.message);
       return;
     }
+    // Admin-featured groups first (Content → Featured), rest by member count.
+    const rows = featuredFirst(rawRows ?? []);
     const groupIds = (rows ?? []).map((r) => r.id);
     const { data: memberRows } = groupIds.length
       ? await supabase
@@ -366,7 +371,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const loadEvents = useCallback(async () => {
-    const { data: rows, error } = await supabase
+    const { data: rawRows, error } = await supabase
       .from("events")
       .select("*, venues(name, area)")
       .order("date", { ascending: true });
@@ -374,6 +379,8 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       console.error("load events failed:", error.message);
       return;
     }
+    // Admin-featured events first (Content → Featured), rest by date.
+    const rows = featuredFirst(rawRows ?? []);
 
     // 'confirmed' only — a 'pending' row is a payment still in progress
     // (shouldn't show as "Registered" yet) and a 'cancelled' row is a past
