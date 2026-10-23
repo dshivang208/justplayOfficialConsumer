@@ -54,7 +54,7 @@ function VenueDiscovery() {
     sport: sportFromUrl ?? defaultFilters.sport,
   });
   const [sort, setSort] = useState<SortKey>("distance");
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [view, setView] = useState<"grid" | "list">("list");
   const [query, setQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [allVenues, setAllVenues] = useState<VenueDetail[]>([]);
