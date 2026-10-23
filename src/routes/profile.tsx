@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
+  Bell,
   Building2,
   Camera,
   ChevronRight,
@@ -379,6 +380,18 @@ function ProfilePage() {
               <p className="text-xs text-muted-foreground">
                 ₹{balance.toLocaleString("en-IN")} credit available
               </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
+          <Link
+            to="/notifications"
+            className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 hover:bg-secondary"
+          >
+            <div>
+              <p className="inline-flex items-center gap-1.5 text-sm font-semibold">
+                <Bell className="h-4 w-4 text-primary" /> Notifications
+              </p>
+              <p className="text-xs text-muted-foreground">Booking updates, replies and offers</p>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </Link>

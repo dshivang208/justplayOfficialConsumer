@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   BellOff,
@@ -88,7 +88,14 @@ function groupLabel(iso: string) {
  * grouped by day, each row with an icon, title, message, time and an unread
  * marker — tapping opens the relevant page.
  */
-export function NotificationPanel({ onNavigate }: { onNavigate?: () => void }) {
+export function NotificationPanel({
+  onNavigate,
+  fullPage = false,
+}: {
+  onNavigate?: () => void;
+  /** Full-page mode: no height cap, no "view all" link. */
+  fullPage?: boolean;
+}) {
   const navigate = useNavigate();
   const {
     notifications,
@@ -123,7 +130,7 @@ export function NotificationPanel({ onNavigate }: { onNavigate?: () => void }) {
   };
 
   return (
-    <div className="flex max-h-[32rem] flex-col">
+    <div className={`flex flex-col ${fullPage ? "" : "max-h-[32rem]"}`}>
       <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <p className="text-sm font-bold text-foreground">Notifications</p>
@@ -226,6 +233,16 @@ export function NotificationPanel({ onNavigate }: { onNavigate?: () => void }) {
           ))
         )}
       </div>
+
+      {!fullPage ? (
+        <Link
+          to="/notifications"
+          onClick={onNavigate}
+          className="block border-t border-border px-4 py-2.5 text-center text-xs font-semibold text-primary hover:bg-secondary/60"
+        >
+          View all notifications
+        </Link>
+      ) : null}
 
       <div className="border-t border-border px-4 py-2.5">
         {pushState === "subscribed" ? (

@@ -20,6 +20,7 @@ import { Route as GamesRouteImport } from './routes/games'
 import { Route as GroupsRouteImport } from './routes/groups'
 import { Route as HostRouteImport } from './routes/host'
 import { Route as InviteRouteImport } from './routes/invite'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -90,6 +91,11 @@ const HostRoute = HostRouteImport.update({
 const InviteRoute = InviteRouteImport.update({
   id: '/invite',
   path: '/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/groups': typeof GroupsRouteWithChildren
   '/host': typeof HostRoute
   '/invite': typeof InviteRoute
+  '/notifications': typeof NotificationsRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/terms': typeof TermsRoute
@@ -212,6 +219,7 @@ export interface FileRoutesByTo {
   '/games': typeof GamesRouteWithChildren
   '/host': typeof HostRoute
   '/invite': typeof InviteRoute
+  '/notifications': typeof NotificationsRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/terms': typeof TermsRoute
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   '/groups': typeof GroupsRouteWithChildren
   '/host': typeof HostRoute
   '/invite': typeof InviteRoute
+  '/notifications': typeof NotificationsRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/terms': typeof TermsRoute
@@ -272,6 +281,7 @@ export interface FileRouteTypes {
     | '/groups'
     | '/host'
     | '/invite'
+    | '/notifications'
     | '/privacy'
     | '/profile'
     | '/terms'
@@ -299,6 +309,7 @@ export interface FileRouteTypes {
     | '/games'
     | '/host'
     | '/invite'
+    | '/notifications'
     | '/privacy'
     | '/profile'
     | '/terms'
@@ -327,6 +338,7 @@ export interface FileRouteTypes {
     | '/groups'
     | '/host'
     | '/invite'
+    | '/notifications'
     | '/privacy'
     | '/profile'
     | '/terms'
@@ -357,6 +369,7 @@ export interface RootRouteChildren {
   GroupsRoute: typeof GroupsRouteWithChildren
   HostRoute: typeof HostRoute
   InviteRoute: typeof InviteRoute
+  NotificationsRoute: typeof NotificationsRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   TermsRoute: typeof TermsRoute
@@ -444,6 +457,13 @@ declare module '@tanstack/react-router' {
       path: '/invite'
       fullPath: '/invite'
       preLoaderRoute: typeof InviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -624,6 +644,7 @@ const rootRouteChildren: RootRouteChildren = {
   GroupsRoute: GroupsRouteWithChildren,
   HostRoute: HostRoute,
   InviteRoute: InviteRoute,
+  NotificationsRoute: NotificationsRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   TermsRoute: TermsRoute,
