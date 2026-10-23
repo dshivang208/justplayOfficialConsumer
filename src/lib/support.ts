@@ -124,6 +124,7 @@ export async function fetchMyTickets(): Promise<SupportTicket[]> {
   const { data, error } = await supabase
     .from("support_tickets")
     .select(TICKET_COLS)
+    .not("user_id", "is", null) // player tickets only — partner tickets have no user_id
     .order("last_message_at", { ascending: false })
     .limit(100)
     .returns<TicketRow[]>();
