@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { toast } from "sonner";
 import { LifeBuoy, Bell, Menu, X, MapPin, CalendarCheck, User, Wallet } from "lucide-react";
 import { Button } from "./Button";
 import { useAuth } from "@/lib/auth";
 import { useWallet } from "@/lib/wallet";
 import { useNotifications } from "@/lib/notifications";
+import { NotificationPanel } from "./NotificationPanel";
 
 const links = [
   { label: "Venues", to: "/venues" },
@@ -19,16 +19,7 @@ export function Navbar() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { user, isAuthenticated, hydrated } = useAuth();
   const { balance } = useWallet();
-  const {
-    notifications,
-    unreadCount,
-    markAsRead,
-    markAllAsRead,
-    pushState,
-    pushError,
-    enablePush,
-    disablePush,
-  } = useNotifications();
+  const { unreadCount } = useNotifications();
 
   const initials = (user?.name ?? "")
     .split(" ")
@@ -79,76 +70,8 @@ export function Navbar() {
                   ) : null}
                 </button>
                 {notificationsOpen ? (
-                  <div className="absolute right-0 top-11 w-80 overflow-hidden rounded-xl border border-border bg-background shadow-lg">
-                    <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5">
-                      <p className="text-sm font-semibold text-foreground">Notifications</p>
-                      {unreadCount > 0 ? (
-                        <button
-                          onClick={markAllAsRead}
-                          className="text-xs font-semibold text-primary hover:underline"
-                        >
-                          Mark all read
-                        </button>
-                      ) : null}
-                    </div>
-                    {notifications.length === 0 ? (
-                      <div className="flex flex-col items-center gap-1.5 px-4 py-8 text-center">
-                        <Bell className="h-5 w-5 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">You're all caught up.</p>
-                      </div>
-                    ) : (
-                      <ul className="flex max-h-80 flex-col divide-y divide-border overflow-y-auto">
-                        {notifications.map((n) => (
-                          <li key={n.id}>
-                            <button
-                              onClick={() => markAsRead(n.id)}
-                              className={`flex w-full items-start gap-2 px-3.5 py-2.5 text-left transition-colors hover:bg-secondary/60 ${
-                                n.read ? "" : "bg-primary/5"
-                              }`}
-                            >
-                              {!n.read ? (
-                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                              ) : (
-                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0" />
-                              )}
-                              <span className="text-sm text-foreground">{n.message}</span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <div className="border-t border-border px-3.5 py-2.5">
-                      {pushState === "subscribed" ? (
-                        <button
-                          onClick={() => void disablePush()}
-                          className="text-xs font-semibold text-muted-foreground hover:text-destructive"
-                        >
-                          Turn off push notifications on this device
-                        </button>
-                      ) : pushState === "unsupported" || pushState === "denied" ? (
-                        <p className="text-xs text-muted-foreground">{pushError}</p>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() =>
-                              enablePush().catch((e) => {
-                                toast.error(
-                                  e instanceof Error
-                                    ? e.message
-                                    : "Could not enable push notifications.",
-                                );
-                              })
-                            }
-                            className="text-xs font-semibold text-primary hover:underline"
-                          >
-                            Enable push notifications on this device
-                          </button>
-                          {pushError ? (
-                            <p className="mt-1 text-xs text-destructive">{pushError}</p>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
+                  <div className="absolute right-0 top-11 z-50 w-[24rem] overflow-hidden rounded-2xl border border-border bg-background shadow-xl">
+                    <NotificationPanel onNavigate={() => setNotificationsOpen(false)} />
                   </div>
                 ) : null}
               </div>
@@ -210,10 +133,7 @@ export function Navbar() {
             {hydrated && isAuthenticated ? (
               <>
                 <button
-                  onClick={() => {
-                    markAllAsRead();
-                    setNotificationsOpen((v) => !v);
-                  }}
+                  onClick={() => setNotificationsOpen((v) => !v)}
                   className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
                 >
                   <span className="inline-flex items-center gap-1.5">
@@ -225,14 +145,15 @@ export function Navbar() {
                     </span>
                   ) : null}
                 </button>
-                {notificationsOpen && notifications.length > 0 ? (
-                  <ul className="mb-1 flex flex-col divide-y divide-border rounded-lg border border-border">
-                    {notifications.slice(0, 5).map((n) => (
-                      <li key={n.id} className="px-3 py-2 text-xs text-muted-foreground">
-                        {n.message}
-                      </li>
-                    ))}
-                  </ul>
+                {notificationsOpen ? (
+                  <div className="mb-1 overflow-hidden rounded-xl border border-border">
+                    <NotificationPanel
+                      onNavigate={() => {
+                        setNotificationsOpen(false);
+                        setOpen(false);
+                      }}
+                    />
+                  </div>
                 ) : null}
                 <Link
                   to="/bookings"
