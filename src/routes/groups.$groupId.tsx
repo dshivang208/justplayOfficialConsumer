@@ -181,6 +181,11 @@ function GroupDetailPage() {
           <div className="max-w-xl">
             <h2 className="text-2xl leading-none">About</h2>
             <p className="mt-2 text-sm text-muted-foreground">{group.description}</p>
+            <p className="mt-3 inline-flex items-center gap-2 text-sm">
+              <MapPin className="h-4 w-4 text-primary" />
+              <span className="font-semibold">Location:</span>
+              <span className="text-muted-foreground">{group.area}, Kanpur</span>
+            </p>
           </div>
           <Button
             size="lg"

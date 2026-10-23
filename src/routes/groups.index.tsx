@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Plus, Users } from "lucide-react";
+import { LayoutGrid, List, Plus, Users } from "lucide-react";
 import { PageShell, PageHeader, Chip } from "@/components/jp/PageShell";
 import { Button } from "@/components/jp/Button";
 import { GroupCard } from "@/components/jp/GroupCard";
@@ -38,6 +38,7 @@ function GroupsPage() {
 
   const [tab, setTab] = useState<"all" | "mine">(initialTab ?? "all");
   const [sport, setSport] = useState("All");
+  const [view, setView] = useState<"grid" | "list">("list");
 
   const filtered = useMemo(() => {
     const base = tab === "mine" ? myGroups : groups;
@@ -112,15 +113,43 @@ function GroupsPage() {
           ))}
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Chip active={sport === "All"} onClick={() => setSport("All")}>
-            All sports
-          </Chip>
-          {sports.slice(0, 8).map((s) => (
-            <Chip key={s.id} active={sport === s.name} onClick={() => setSport(s.name)}>
-              {s.emoji} {s.name}
+        <div className="mt-5 flex items-start justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Chip active={sport === "All"} onClick={() => setSport("All")}>
+              All sports
             </Chip>
-          ))}
+            {sports.slice(0, 8).map((s) => (
+              <Chip key={s.id} active={sport === s.name} onClick={() => setSport(s.name)}>
+                {s.emoji} {s.name}
+              </Chip>
+            ))}
+          </div>
+          <div className="flex shrink-0 overflow-hidden rounded-full border border-border">
+            <button
+              type="button"
+              aria-label="Grid view"
+              onClick={() => setView("grid")}
+              className={
+                view === "grid"
+                  ? "bg-primary p-2 text-primary-foreground"
+                  : "bg-surface p-2 text-muted-foreground"
+              }
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="List view"
+              onClick={() => setView("list")}
+              className={
+                view === "list"
+                  ? "bg-primary p-2 text-primary-foreground"
+                  : "bg-surface p-2 text-muted-foreground"
+              }
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="mt-6">
@@ -142,11 +171,16 @@ function GroupsPage() {
               }
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              className={
+                view === "grid" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3" : "flex flex-col gap-3"
+              }
+            >
               {filtered.map((group) => (
                 <GroupCard
                   key={group.id}
                   group={group}
+                  view={view}
                   joined={joinedGroupIds.includes(group.id)}
                   requested={group.pendingRequests.some((p) => p.id === user?.id)}
                   onToggle={() => handleToggle(group.id, joinedGroupIds.includes(group.id))}
