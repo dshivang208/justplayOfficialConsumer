@@ -23,6 +23,11 @@ export type Booking = {
   hours: number;
   status: BookingStatus;
   amountPaid: number;
+  /** What the player actually paid for this booking (kept after a cancel,
+   *  unlike `amountPaid`, which is 0 once cancelled). */
+  amountCharged: number;
+  /** For cancelled bookings only: what actually happened to the money. */
+  moneyOutcome: "refunded" | "not_charged" | "no_refund" | null;
 };
 
 export const CANCELLATION_WINDOW_HOURS = 2;
@@ -36,6 +41,8 @@ type BookingRow = {
   price_paid: number;
   credit_applied: number;
   status: BookingStatus;
+  /** Absent on databases that predate the payment_status column. */
+  payment_status?: "pending" | "paid" | "refunded" | "failed" | null;
   venues: { name: string; area: string | null; photos: string[] } | null;
 };
 
@@ -55,6 +62,16 @@ function parseHourFromLabel(time: string): { startHour: number; hours: number } 
   return { startHour: start, hours: end != null ? Math.max(1, end - start) : 1 };
 }
 
+/** A cancelled booking only says "Refunded" if a refund really happened.
+ *  One cancelled before it was ever paid for was simply never charged. */
+function moneyOutcome(row: BookingRow): Booking["moneyOutcome"] {
+  if (!row.status.startsWith("cancelled")) return null;
+  if (row.status === "cancelled_refunded" || row.payment_status === "refunded") return "refunded";
+  if (row.payment_status === "paid") return "no_refund";
+  if (row.payment_status === undefined) return "no_refund"; // older schema: can't tell, don't claim a refund
+  return "not_charged";
+}
+
 function rowToBooking(row: BookingRow): Booking {
   const { startHour, hours } = parseHourFromLabel(row.time);
   return {
@@ -69,21 +86,30 @@ function rowToBooking(row: BookingRow): Booking {
     hours,
     status: row.status,
     amountPaid: row.status.startsWith("cancelled") ? 0 : row.price_paid - row.credit_applied,
+    amountCharged: Math.max(0, row.price_paid - row.credit_applied),
+    moneyOutcome: moneyOutcome(row),
   };
 }
 
 export async function fetchMyBookings(): Promise<Booking[]> {
-  const { data, error } = await supabase
+  const cols = "id, venue_id, sport, date, time, price_paid, credit_applied, status, venues(name, area, photos)";
+  let rows: unknown[] | null = null;
+  const withPayment = await supabase
     .from("bookings")
-    .select("id, venue_id, sport, date, time, price_paid, credit_applied, status, venues(name, area, photos)")
+    .select(`${cols}, payment_status`)
     .order("date", { ascending: false });
-
-  if (error) {
-    console.error("fetchMyBookings failed:", error.message);
-    return [];
+  if (!withPayment.error) {
+    rows = withPayment.data as unknown[];
+  } else {
+    // payment_status column not present — fall back to the original columns.
+    const legacy = await supabase.from("bookings").select(cols).order("date", { ascending: false });
+    if (legacy.error) {
+      console.error("fetchMyBookings failed:", legacy.error.message);
+      return [];
+    }
+    rows = legacy.data as unknown[];
   }
-
-  return (data ?? []).map((row) => rowToBooking(row as unknown as BookingRow));
+  return (rows ?? []).map((row) => rowToBooking(row as BookingRow));
 }
 
 /** Cancels a booking (and triggers a Razorpay refund when eligible) via the

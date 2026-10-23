@@ -92,7 +92,17 @@ export function BookingCard({
           <div className="mt-auto flex items-center justify-between gap-2">
             <SportTag sport={booking.sport} />
             <span className="text-sm font-bold">
-              {booking.amountPaid > 0 ? formatINR(booking.amountPaid) : "Refunded"}
+              {booking.moneyOutcome === "refunded" ? (
+                <>Refunded {booking.amountCharged > 0 ? formatINR(booking.amountCharged) : ""}</>
+              ) : booking.moneyOutcome === "not_charged" ? (
+                <>Not charged</>
+              ) : booking.moneyOutcome === "no_refund" ? (
+                <>
+                  {booking.amountCharged > 0 ? `${formatINR(booking.amountCharged)} · ` : ""}No refund
+                </>
+              ) : (
+                formatINR(booking.amountPaid)
+              )}
               <span className="text-[11px] font-medium text-muted-foreground"> · #{booking.id}</span>
             </span>
           </div>
