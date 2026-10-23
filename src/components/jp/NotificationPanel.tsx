@@ -8,7 +8,6 @@ import {
   CheckCheck,
   Gamepad2,
   Headset,
-  Megaphone,
   Receipt,
   Tag,
   Ticket,
@@ -16,6 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useNotifications, type AppNotification } from "@/lib/notifications";
+import { JustPlayMark } from "./JustPlayMark";
 
 type Kind = "support" | "refund" | "booking" | "wallet" | "game" | "group" | "event" | "offer" | "general";
 
@@ -59,7 +59,7 @@ function describe(n: AppNotification): Meta {
     return { kind: "group", title: "Groups", body: text, to: "/groups", icon: <Users className="h-4 w-4" />, tone: "bg-primary/10 text-primary" };
   if (m(/offer|discount|coupon|% off|sale/i))
     return { kind: "offer", title: "Offer", body: text, to: "/venues", icon: <Tag className="h-4 w-4" />, tone: "bg-accent/15 text-accent" };
-  return { kind: "general", title: "JustPlay", body: text, to: null, icon: <Megaphone className="h-4 w-4" />, tone: "bg-secondary text-secondary-foreground" };
+  return { kind: "general", title: "JustPlay", body: text, to: null, icon: <JustPlayMark className="h-9 w-9 text-lg" />, tone: "bg-secondary text-secondary-foreground" };
 }
 
 function timeAgo(iso: string) {
@@ -190,11 +190,15 @@ export function NotificationPanel({ onNavigate }: { onNavigate?: () => void }) {
                           n.read ? "" : "bg-primary/5"
                         }`}
                       >
-                        <span
-                          className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${meta.tone}`}
-                        >
-                          {meta.icon}
-                        </span>
+                        {meta.kind === "general" ? (
+                          <span className="mt-0.5 shrink-0">{meta.icon}</span>
+                        ) : (
+                          <span
+                            className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${meta.tone}`}
+                          >
+                            {meta.icon}
+                          </span>
+                        )}
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center justify-between gap-2">
                             <span
