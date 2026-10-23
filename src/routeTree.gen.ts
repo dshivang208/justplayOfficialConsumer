@@ -30,6 +30,7 @@ import { Route as GamesGameIdRouteImport } from './routes/games.$gameId'
 import { Route as GroupsIndexRouteImport } from './routes/groups.index'
 import { Route as GroupsGroupIdRouteImport } from './routes/groups.$groupId'
 import { Route as GroupsCreateRouteImport } from './routes/groups.create'
+import { Route as VenueGroupVenueIdRouteImport } from './routes/venue-group.$venueId'
 import { Route as VenuesIndexRouteImport } from './routes/venues.index'
 import { Route as VenuesVenueIdRouteImport } from './routes/venues.$venueId'
 
@@ -138,6 +139,11 @@ const GroupsCreateRoute = GroupsCreateRouteImport.update({
   path: '/create',
   getParentRoute: () => GroupsRoute,
 } as any)
+const VenueGroupVenueIdRoute = VenueGroupVenueIdRouteImport.update({
+  id: '/venue-group/$venueId',
+  path: '/venue-group/$venueId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VenuesIndexRoute = VenuesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/games/$gameId': typeof GamesGameIdRoute
   '/groups/$groupId': typeof GroupsGroupIdRoute
   '/groups/create': typeof GroupsCreateRoute
+  '/venue-group/$venueId': typeof VenueGroupVenueIdRoute
   '/venues/$venueId': typeof VenuesVenueIdRoute
   '/events/': typeof EventsIndexRoute
   '/groups/': typeof GroupsIndexRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/games/$gameId': typeof GamesGameIdRoute
   '/groups/$groupId': typeof GroupsGroupIdRoute
   '/groups/create': typeof GroupsCreateRoute
+  '/venue-group/$venueId': typeof VenueGroupVenueIdRoute
   '/venues/$venueId': typeof VenuesVenueIdRoute
   '/events': typeof EventsIndexRoute
   '/groups': typeof GroupsIndexRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/games/$gameId': typeof GamesGameIdRoute
   '/groups/$groupId': typeof GroupsGroupIdRoute
   '/groups/create': typeof GroupsCreateRoute
+  '/venue-group/$venueId': typeof VenueGroupVenueIdRoute
   '/venues/$venueId': typeof VenuesVenueIdRoute
   '/events/': typeof EventsIndexRoute
   '/groups/': typeof GroupsIndexRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/games/$gameId'
     | '/groups/$groupId'
     | '/groups/create'
+    | '/venue-group/$venueId'
     | '/venues/$venueId'
     | '/events/'
     | '/groups/'
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/games/$gameId'
     | '/groups/$groupId'
     | '/groups/create'
+    | '/venue-group/$venueId'
     | '/venues/$venueId'
     | '/events'
     | '/groups'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/games/$gameId'
     | '/groups/$groupId'
     | '/groups/create'
+    | '/venue-group/$venueId'
     | '/venues/$venueId'
     | '/events/'
     | '/groups/'
@@ -313,6 +325,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   VenuesRoute: typeof VenuesRouteWithChildren
   BookVenueIdRoute: typeof BookVenueIdRoute
+  VenueGroupVenueIdRoute: typeof VenueGroupVenueIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -464,6 +477,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GroupsCreateRouteImport
       parentRoute: typeof GroupsRoute
     }
+    '/venue-group/$venueId': {
+      id: '/venue-group/$venueId'
+      path: '/venue-group/$venueId'
+      fullPath: '/venue-group/$venueId'
+      preLoaderRoute: typeof VenueGroupVenueIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/venues/': {
       id: '/venues/'
       path: '/'
@@ -548,6 +568,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   VenuesRoute: VenuesRouteWithChildren,
   BookVenueIdRoute: BookVenueIdRoute,
+  VenueGroupVenueIdRoute: VenueGroupVenueIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
