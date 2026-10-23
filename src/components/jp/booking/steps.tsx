@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Check, Smartphone, CreditCard, Landmark, ChevronDown, Gift } from "lucide-react";
 import type { Slot, VenueDetail } from "@/data/venues";
 import {
@@ -121,6 +122,7 @@ export function SummaryStep({
   breakdown,
   creditApplied = 0,
   courtName,
+  invoice,
 }: {
   venue: VenueDetail;
   sport: string;
@@ -129,6 +131,12 @@ export function SummaryStep({
   breakdown: PriceBreakdown;
   creditApplied?: number;
   courtName?: string | null;
+  /** GST invoice option — omitted when signed out. */
+  invoice?: {
+    profile: { companyName: string; gstNumber: string } | null;
+    checked: boolean;
+    onChange: (v: boolean) => void;
+  };
 }) {
   const rows: Array<[string, string]> = [
     ["Venue", venue.name],
@@ -154,6 +162,35 @@ export function SummaryStep({
           ))}
         </dl>
       </div>
+      {invoice ? (
+        <div className="surface-card rounded-2xl p-4">
+          {invoice.profile ? (
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={invoice.checked}
+                onChange={(e) => invoice.onChange(e.target.checked)}
+                className="mt-1 h-4 w-4 accent-[var(--primary)]"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Need a GST invoice?</span>
+                <span className="block text-xs text-muted-foreground">
+                  Share {invoice.profile.companyName} · {invoice.profile.gstNumber} with the venue.
+                  The venue issues the invoice.
+                </span>
+              </span>
+            </label>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Booking for your company?{" "}
+              <Link to="/corporate-profile" className="font-semibold text-primary hover:underline">
+                Add your corporate profile
+              </Link>{" "}
+              to get a GST invoice.
+            </p>
+          )}
+        </div>
+      ) : null}
       <PriceCard breakdown={breakdown} creditApplied={creditApplied} />
     </div>
   );

@@ -1,4 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import {
+  attachBookingInvoice,
+  fetchCorporateProfile,
+  fetchInvoiceBookingIds,
+  removeBookingInvoice,
+} from "@/lib/corporateProfile";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { CalendarX2, Loader2 } from "lucide-react";
 import { Navbar } from "@/components/jp/Navbar";
@@ -34,6 +41,29 @@ function BookingsPage() {
   const [list, setList] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+  const [hasProfile, setHasProfile] = useState(false);
+  const [invoiceIds, setInvoiceIds] = useState<Set<string>>(new Set());
+  const [invoiceBusy, setInvoiceBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void fetchCorporateProfile().then((p) => setHasProfile(Boolean(p)));
+    void fetchInvoiceBookingIds().then(setInvoiceIds);
+  }, [isAuthenticated]);
+
+  const changeInvoice = async (id: string, add: boolean) => {
+    setInvoiceBusy(id);
+    try {
+      if (add) await attachBookingInvoice(id);
+      else await removeBookingInvoice(id);
+      setInvoiceIds(await fetchInvoiceBookingIds());
+      toast.success(add ? "GST details shared with the venue" : "GST details removed");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't update GST details.");
+    } finally {
+      setInvoiceBusy(null);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -150,6 +180,17 @@ function BookingsPage() {
                 key={b.id}
                 booking={b}
                 variant={tab}
+                {...(b.status === "confirmed" || b.status === "completed"
+                  ? {
+                      invoice: {
+                        attached: invoiceIds.has(b.id),
+                        hasProfile,
+                        busy: invoiceBusy === b.id,
+                        onAdd: () => void changeInvoice(b.id, true),
+                        onRemove: () => void changeInvoice(b.id, false),
+                      },
+                    }
+                  : {})}
                 onCancel={async (booking) => {
                   await cancelBooking(booking.id);
                   const fresh = await fetchMyBookings();

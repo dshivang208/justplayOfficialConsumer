@@ -85,3 +85,32 @@ export async function deleteCorporateProfile(): Promise<void> {
   const { error } = await supabase.rpc("delete_corporate_profile");
   if (error) throw friendly(error.message);
 }
+
+// ── GST invoice details on a booking ──────────────────────────────────────
+// The profile is COPIED onto the booking (server-side), so the venue sees the
+// details that were current when the invoice was requested.
+
+export async function attachBookingInvoice(bookingId: string): Promise<void> {
+  const { error } = await supabase.rpc("attach_booking_invoice", { p_booking_id: bookingId });
+  if (!error) return;
+  if (error.message.includes("NO_CORPORATE_PROFILE"))
+    throw new Error("Add your corporate profile first.");
+  if (error.message.includes("BOOKING_CANCELLED"))
+    throw new Error("This booking is cancelled.");
+  if (/could not find the function|schema cache|does not exist/i.test(error.message))
+    throw new Error("GST invoices aren't available yet. Please try again later.");
+  throw new Error("Couldn't add GST details to this booking. Try again.");
+}
+
+export async function removeBookingInvoice(bookingId: string): Promise<void> {
+  const { error } = await supabase.rpc("remove_booking_invoice", { p_booking_id: bookingId });
+  if (error) throw new Error("Couldn't remove the GST details. Try again.");
+}
+
+/** Ids of the player's bookings that already carry GST invoice details.
+ *  Tolerant of the table not existing yet (returns an empty set). */
+export async function fetchInvoiceBookingIds(): Promise<Set<string>> {
+  const { data, error } = await supabase.from("booking_invoice_details").select("booking_id");
+  if (error) return new Set();
+  return new Set((data ?? []).map((r) => r.booking_id as string));
+}

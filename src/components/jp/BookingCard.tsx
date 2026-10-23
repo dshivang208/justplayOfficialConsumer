@@ -37,7 +37,16 @@ export function BookingCard({
   variant,
   onCancel,
   onReschedule,
+  invoice,
 }: {
+  /** GST invoice state for this booking; omitted when it can't apply. */
+  invoice?: {
+    attached: boolean;
+    hasProfile: boolean;
+    busy: boolean;
+    onAdd: () => void;
+    onRemove: () => void;
+  };
   booking: Booking;
   variant: "upcoming" | "past";
   onCancel?: (b: Booking) => Promise<void> | void;
@@ -171,6 +180,42 @@ export function BookingCard({
           </Button>
         </div>
       )}
+      {invoice ? (
+        <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs">
+          {invoice.attached ? (
+            <>
+              <span className="font-semibold text-primary">✓ GST details shared with venue</span>
+              <button
+                type="button"
+                disabled={invoice.busy}
+                onClick={invoice.onRemove}
+                className="font-semibold text-muted-foreground hover:text-destructive disabled:opacity-50"
+              >
+                Remove
+              </button>
+            </>
+          ) : invoice.hasProfile ? (
+            <>
+              <span className="text-muted-foreground">Need a GST invoice?</span>
+              <button
+                type="button"
+                disabled={invoice.busy}
+                onClick={invoice.onAdd}
+                className="font-semibold text-primary hover:underline disabled:opacity-50"
+              >
+                {invoice.busy ? "Adding…" : "Add GST details"}
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-muted-foreground">Need a GST invoice?</span>
+              <Link to="/corporate-profile" className="font-semibold text-primary hover:underline">
+                Add corporate profile
+              </Link>
+            </>
+          )}
+        </div>
+      ) : null}
       <div className="border-t border-border px-3 py-2 text-center">
         <Link
           to="/support"

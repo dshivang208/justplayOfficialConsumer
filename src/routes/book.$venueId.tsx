@@ -28,6 +28,12 @@ import {
 } from "@/lib/booking";
 import { payForBooking } from "@/lib/razorpay";
 import { supabase } from "@/lib/supabaseClient";
+import { toast } from "sonner";
+import {
+  attachBookingInvoice,
+  fetchCorporateProfile,
+  type CorporateProfile,
+} from "@/lib/corporateProfile";
 
 export const Route = createFileRoute("/book/$venueId")({
   loader: async ({ params }) => {
@@ -92,9 +98,25 @@ function BookingFlow() {
     if (defaultMethod) setUpiId(defaultMethod.maskedIdentifier);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedUpiMethods]);
+  const [corporate, setCorporate] = useState<CorporateProfile | null>(null);
+  const [wantInvoice, setWantInvoice] = useState(false);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState("");
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setCorporate(null);
+      return;
+    }
+    let active = true;
+    void fetchCorporateProfile().then((p) => {
+      if (active) setCorporate(p);
+    });
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(true);
   const [courts, setCourts] = useState<Court[]>([]);
@@ -222,6 +244,15 @@ function BookingFlow() {
       }
 
       void refreshWallet();
+      if (wantInvoice && corporate) {
+        // Best-effort: the booking is already paid, so a failure here must not
+        // undo it — the player can add GST details later from My Bookings.
+        try {
+          await attachBookingInvoice(createdBookingId);
+        } catch {
+          toast.error("Booked! We couldn't add your GST details — add them from My Bookings.");
+        }
+      }
       setPaying(false);
       setBookingId(displayBookingId(createdBookingId));
       setStep(4);
@@ -362,6 +393,15 @@ function BookingFlow() {
               breakdown={breakdown}
               creditApplied={creditApplied}
               courtName={activeCourt?.name ?? null}
+              {...(isAuthenticated
+                ? {
+                    invoice: {
+                      profile: corporate,
+                      checked: wantInvoice,
+                      onChange: setWantInvoice,
+                    },
+                  }
+                : {})}
             />
           ) : null}
 
