@@ -30,6 +30,8 @@ import { Route as GamesGameIdRouteImport } from './routes/games.$gameId'
 import { Route as GroupsIndexRouteImport } from './routes/groups.index'
 import { Route as GroupsGroupIdRouteImport } from './routes/groups.$groupId'
 import { Route as GroupsCreateRouteImport } from './routes/groups.create'
+import { Route as SupportIndexRouteImport } from './routes/support.index'
+import { Route as SupportTicketIdRouteImport } from './routes/support.$ticketId'
 import { Route as VenueGroupVenueIdRouteImport } from './routes/venue-group.$venueId'
 import { Route as VenuesIndexRouteImport } from './routes/venues.index'
 import { Route as VenuesVenueIdRouteImport } from './routes/venues.$venueId'
@@ -139,6 +141,16 @@ const GroupsCreateRoute = GroupsCreateRouteImport.update({
   path: '/create',
   getParentRoute: () => GroupsRoute,
 } as any)
+const SupportIndexRoute = SupportIndexRouteImport.update({
+  id: '/support/',
+  path: '/support/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportTicketIdRoute = SupportTicketIdRouteImport.update({
+  id: '/support/$ticketId',
+  path: '/support/$ticketId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VenueGroupVenueIdRoute = VenueGroupVenueIdRouteImport.update({
   id: '/venue-group/$venueId',
   path: '/venue-group/$venueId',
@@ -175,10 +187,12 @@ export interface FileRoutesByFullPath {
   '/games/$gameId': typeof GamesGameIdRoute
   '/groups/$groupId': typeof GroupsGroupIdRoute
   '/groups/create': typeof GroupsCreateRoute
+  '/support/$ticketId': typeof SupportTicketIdRoute
   '/venue-group/$venueId': typeof VenueGroupVenueIdRoute
   '/venues/$venueId': typeof VenuesVenueIdRoute
   '/events/': typeof EventsIndexRoute
   '/groups/': typeof GroupsIndexRoute
+  '/support/': typeof SupportIndexRoute
   '/venues/': typeof VenuesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -198,10 +212,12 @@ export interface FileRoutesByTo {
   '/games/$gameId': typeof GamesGameIdRoute
   '/groups/$groupId': typeof GroupsGroupIdRoute
   '/groups/create': typeof GroupsCreateRoute
+  '/support/$ticketId': typeof SupportTicketIdRoute
   '/venue-group/$venueId': typeof VenueGroupVenueIdRoute
   '/venues/$venueId': typeof VenuesVenueIdRoute
   '/events': typeof EventsIndexRoute
   '/groups': typeof GroupsIndexRoute
+  '/support': typeof SupportIndexRoute
   '/venues': typeof VenuesIndexRoute
 }
 export interface FileRoutesById {
@@ -225,10 +241,12 @@ export interface FileRoutesById {
   '/games/$gameId': typeof GamesGameIdRoute
   '/groups/$groupId': typeof GroupsGroupIdRoute
   '/groups/create': typeof GroupsCreateRoute
+  '/support/$ticketId': typeof SupportTicketIdRoute
   '/venue-group/$venueId': typeof VenueGroupVenueIdRoute
   '/venues/$venueId': typeof VenuesVenueIdRoute
   '/events/': typeof EventsIndexRoute
   '/groups/': typeof GroupsIndexRoute
+  '/support/': typeof SupportIndexRoute
   '/venues/': typeof VenuesIndexRoute
 }
 export interface FileRouteTypes {
@@ -253,10 +271,12 @@ export interface FileRouteTypes {
     | '/games/$gameId'
     | '/groups/$groupId'
     | '/groups/create'
+    | '/support/$ticketId'
     | '/venue-group/$venueId'
     | '/venues/$venueId'
     | '/events/'
     | '/groups/'
+    | '/support/'
     | '/venues/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -276,10 +296,12 @@ export interface FileRouteTypes {
     | '/games/$gameId'
     | '/groups/$groupId'
     | '/groups/create'
+    | '/support/$ticketId'
     | '/venue-group/$venueId'
     | '/venues/$venueId'
     | '/events'
     | '/groups'
+    | '/support'
     | '/venues'
   id:
     | '__root__'
@@ -302,10 +324,12 @@ export interface FileRouteTypes {
     | '/games/$gameId'
     | '/groups/$groupId'
     | '/groups/create'
+    | '/support/$ticketId'
     | '/venue-group/$venueId'
     | '/venues/$venueId'
     | '/events/'
     | '/groups/'
+    | '/support/'
     | '/venues/'
   fileRoutesById: FileRoutesById
 }
@@ -325,7 +349,9 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   VenuesRoute: typeof VenuesRouteWithChildren
   BookVenueIdRoute: typeof BookVenueIdRoute
+  SupportTicketIdRoute: typeof SupportTicketIdRoute
   VenueGroupVenueIdRoute: typeof VenueGroupVenueIdRoute
+  SupportIndexRoute: typeof SupportIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -477,6 +503,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GroupsCreateRouteImport
       parentRoute: typeof GroupsRoute
     }
+    '/support/': {
+      id: '/support/'
+      path: '/support'
+      fullPath: '/support/'
+      preLoaderRoute: typeof SupportIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support/$ticketId': {
+      id: '/support/$ticketId'
+      path: '/support/$ticketId'
+      fullPath: '/support/$ticketId'
+      preLoaderRoute: typeof SupportTicketIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/venue-group/$venueId': {
       id: '/venue-group/$venueId'
       path: '/venue-group/$venueId'
@@ -568,7 +608,9 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   VenuesRoute: VenuesRouteWithChildren,
   BookVenueIdRoute: BookVenueIdRoute,
+  SupportTicketIdRoute: SupportTicketIdRoute,
   VenueGroupVenueIdRoute: VenueGroupVenueIdRoute,
+  SupportIndexRoute: SupportIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

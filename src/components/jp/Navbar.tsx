@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Bell, Menu, X, MapPin, CalendarCheck, User, Wallet } from "lucide-react";
+import { LifeBuoy, Bell, Menu, X, MapPin, CalendarCheck, User, Wallet } from "lucide-react";
 import { Button } from "./Button";
 import { useAuth } from "@/lib/auth";
 import { useWallet } from "@/lib/wallet";
@@ -159,6 +159,12 @@ export function Navbar() {
                 <CalendarCheck className="h-4 w-4" /> Bookings
               </Link>
               <Link
+                to="/support"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary"
+              >
+                <LifeBuoy className="h-4 w-4" /> Support
+              </Link>
+              <Link
                 to="/invite"
                 className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-bold text-accent transition-colors hover:bg-accent/20"
               >
@@ -234,6 +240,13 @@ export function Navbar() {
                   className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
                 >
                   My Bookings
+                </Link>
+                <Link
+                  to="/support"
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                >
+                  Help & Support
                 </Link>
                 <Link
                   to="/invite"

@@ -11,6 +11,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { supabase } from "@/lib/supabaseClient";
+import { createTicket } from "@/lib/support";
+import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/contact")({
@@ -57,6 +59,7 @@ function ContactPage() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [ticketId, setTicketId] = useState<string | null>(null);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   const nameError = name.trim().length === 0 ? "Your name is required." : null;
@@ -70,11 +73,24 @@ function ContactPage() {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
+      if (user) {
+        // Signed-in players get a real support ticket they can track and reply to.
+        const t = await createTicket({
+          subject: `Contact form: ${message.trim().slice(0, 60)}`,
+          category: "other",
+          message: message.trim(),
+        });
+        setTicketId(t.id);
+        setSubmitted(true);
+        setMessage("");
+        toast.success("Message sent — we'll reply in your Support inbox.");
+        return;
+      }
       const { error } = await supabase.from("contact_submissions").insert({
         name: name.trim(),
         email: email.trim(),
         message: message.trim(),
-        user_id: user?.id ?? null,
+        user_id: null,
       });
       if (error) throw new Error(error.message);
       setSubmitted(true);
@@ -105,7 +121,21 @@ function ContactPage() {
               <p className="mt-1.5 text-sm text-muted-foreground">
                 Our team usually replies within 1–2 business days.
               </p>
-              <Button variant="outline" className="mt-4" onClick={() => setSubmitted(false)}>
+              {ticketId ? (
+                <Button asChild className="mt-4 mr-2">
+                  <Link to="/support/$ticketId" params={{ ticketId }}>
+                    Track your request
+                  </Link>
+                </Button>
+              ) : null}
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => {
+                  setSubmitted(false);
+                  setTicketId(null);
+                }}
+              >
                 Send another message
               </Button>
             </div>

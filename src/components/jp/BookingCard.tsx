@@ -171,6 +171,15 @@ export function BookingCard({
           </Button>
         </div>
       )}
+      <div className="border-t border-border px-3 py-2 text-center">
+        <Link
+          to="/support"
+          search={{ booking: booking.id }}
+          className="text-xs font-semibold text-muted-foreground hover:text-primary"
+        >
+          Need help with this booking?
+        </Link>
+      </div>
     </article>
   );
 }
