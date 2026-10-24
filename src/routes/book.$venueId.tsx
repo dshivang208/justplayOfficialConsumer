@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Navbar } from "@/components/jp/Navbar";
 import { useAuth } from "@/lib/auth";
 import { useWallet } from "@/lib/wallet";
+import { previewRedemption, useReferralProgram } from "@/lib/referralProgram";
 import { usePaymentMethods } from "@/lib/paymentMethods";
 import { Button } from "@/components/jp/Button";
 import { SlotGrid, SlotLegend } from "@/components/jp/booking/SlotGrid";
@@ -79,6 +80,8 @@ function BookingFlow() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { balance, refresh: refreshWallet } = useWallet();
+  const { program } = useReferralProgram();
+  const [redeemPoints, setRedeemPoints] = useState(true);
   const { methods: savedMethods } = usePaymentMethods();
   const savedUpiMethods = savedMethods.filter((m) => m.type === "upi");
 
@@ -162,7 +165,14 @@ function BookingFlow() {
   }, [venue.id, date, sport, activeCourt?.id, courtsLoaded]);
 
   const breakdown = useMemo(() => calculatePrice(selected), [selected]);
-  const creditApplied = Math.max(0, Math.min(balance, breakdown.total));
+  // Points redemption — the server re-computes this from the admin's rules;
+  // this preview mirrors it so the price card matches what gets charged.
+  const redemption = useMemo(
+    () => previewRedemption(breakdown.total, balance, program),
+    [breakdown.total, balance, program],
+  );
+  const pointsUsed = redeemPoints ? redemption.points : 0;
+  const creditApplied = redeemPoints ? redemption.inr : 0;
   const payableTotal = Math.max(0, breakdown.total - creditApplied);
   const sortedSelected = useMemo(
     () => [...selected].sort((a, b) => a.startMinutes - b.startMinutes),
@@ -218,7 +228,7 @@ function BookingFlow() {
       // SLOT_UNAVAILABLE here instead of a double booking.
       const { data: booking, error: rpcError } = await supabase.rpc("create_booking", {
         p_slot_ids: sortedSelected.map((s) => s.id),
-        p_credit_applied: creditApplied,
+        p_credit_applied: pointsUsed, // points to redeem — the server converts to ₹
       });
       if (rpcError) throw new Error(rpcError.message);
       createdBookingId = booking.id as string;
@@ -392,6 +402,7 @@ function BookingFlow() {
               slots={sortedSelected}
               breakdown={breakdown}
               creditApplied={creditApplied}
+              pointsUsed={pointsUsed}
               courtName={activeCourt?.name ?? null}
               {...(isAuthenticated
                 ? {
@@ -414,7 +425,16 @@ function BookingFlow() {
               onUpiIdChange={setUpiId}
               error={error}
               creditApplied={creditApplied}
-              availableCredit={balance}
+              pointsUsed={pointsUsed}
+              points={{
+                balance,
+                maxPoints: redemption.max,
+                maxCreditInr: redemption.inr,
+                maxPercent: program.maxRedeemPercent,
+                minPoints: program.minRedeemPoints,
+                enabled: redeemPoints,
+                onToggle: setRedeemPoints,
+              }}
               savedUpiMethods={savedUpiMethods}
             />
           ) : null}
@@ -448,7 +468,7 @@ function BookingFlow() {
                       ["Date", formatDateLong(date)],
                       ["Time", timeLabel],
                       ...(creditApplied > 0
-                        ? ([["Reward credit used", `-${formatINR(creditApplied)}`]] as Array<
+                        ? ([["Reward points used", `${pointsUsed.toLocaleString("en-IN")} pts (-${formatINR(creditApplied)})`]] as Array<
                             [string, string]
                           >)
                         : []),

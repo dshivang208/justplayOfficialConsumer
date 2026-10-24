@@ -1,5 +1,5 @@
 /**
- * Backend Phase F: wallet + referrals, backed by real `wallet_transactions`
+ * Backend Phase F: reward points wallet + referrals (amounts are POINTS), backed by real `wallet_transactions`
  * (balance derived via the `my_wallet_balance` RPC — never a stored,
  * client-editable field) and `referrals` (real per-user code from
  * `users.referral_code`, generated server-side at signup — see the
@@ -24,6 +24,7 @@ export type Referral = {
   name: string;
   phone: string;
   status: ReferralStatus;
+  /** Points the referrer earned from this referral. */
   rewardAmount?: number;
   date: string;
 };
@@ -39,6 +40,8 @@ type WalletContextValue = {
   balance: number;
   referralCode: string;
   referrals: Referral[];
+  /** True once this player has used somebody's referral code. */
+  wasReferred: boolean;
   transactions: WalletTransaction[];
   loading: boolean;
   /** Re-fetches balance/referrals/transactions — call after anything that
@@ -60,15 +63,25 @@ function transactionLabel(type: string, description: string | null) {
     case "referral_reward":
       return "Referral reward";
     case "redeemed":
-      return "Applied to a booking";
+      return "Redeemed on a booking";
     case "refund":
-      return "Refund";
+      return "Points restored";
+    case "goodwill_credit":
+      return "Goodwill credit";
+    case "admin_adjust":
+      return "Adjustment by JustPlay";
     default:
-      return "Wallet update";
+      return "Points update";
   }
 }
 
-const emptyState = { balance: 0, referralCode: "", referrals: [] as Referral[], transactions: [] as WalletTransaction[] };
+const emptyState = {
+  balance: 0,
+  referralCode: "",
+  referrals: [] as Referral[],
+  wasReferred: false,
+  transactions: [] as WalletTransaction[],
+};
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -82,18 +95,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
     setLoading(true);
 
-    const [balanceRes, referralCodeRes, referralsRes, txRes] = await Promise.all([
+    const [balanceRes, referralCodeRes, referralsRes, txRes, referredRes] = await Promise.all([
       supabase.rpc("my_wallet_balance"),
       supabase.from("users").select("referral_code").eq("id", user.id).maybeSingle(),
       supabase
         .from("referrals")
         .select("id, referred_phone, status, reward_amount, created_at")
+        .eq("referrer_user_id", user.id)
         .order("created_at", { ascending: false }),
       supabase
         .from("wallet_transactions")
         .select("id, amount, type, description, created_at")
         .order("created_at", { ascending: false })
         .limit(50),
+      supabase.from("referrals").select("id").eq("referred_user_id", user.id).maybeSingle(),
     ]);
 
     if (balanceRes.error) console.error("my_wallet_balance failed:", balanceRes.error.message);
@@ -109,6 +124,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setState({
       balance: (balanceRes.data as number | null) ?? 0,
       referralCode: referralCodeRes.data?.referral_code ?? "",
+      wasReferred: Boolean(referredRes.data),
       referrals: (referralsRes.data ?? []).map((r) => ({
         id: r.id,
         name: "Friend",

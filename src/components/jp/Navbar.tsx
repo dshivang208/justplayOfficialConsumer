@@ -91,7 +91,7 @@ export function Navbar() {
                 to="/invite"
                 className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-bold text-accent transition-colors hover:bg-accent/20"
               >
-                <Wallet className="h-3.5 w-3.5" /> ₹{balance.toLocaleString("en-IN")} credit
+                <Wallet className="h-3.5 w-3.5" /> {balance.toLocaleString("en-IN")} pts
               </Link>
               <Link
                 to="/profile"
@@ -176,7 +176,7 @@ export function Navbar() {
                 >
                   Invite & Rewards
                   <span className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[11px] font-bold text-accent">
-                    <Wallet className="h-3 w-3" /> ₹{balance.toLocaleString("en-IN")}
+                    <Wallet className="h-3 w-3" /> {balance.toLocaleString("en-IN")} pts
                   </span>
                 </Link>
                 <Link

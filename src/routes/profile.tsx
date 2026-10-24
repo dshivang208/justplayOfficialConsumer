@@ -378,7 +378,7 @@ function ProfilePage() {
             <div>
               <p className="text-sm font-semibold">Invite & Rewards</p>
               <p className="text-xs text-muted-foreground">
-                ₹{balance.toLocaleString("en-IN")} credit available
+                {balance.toLocaleString("en-IN")} reward points
               </p>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />

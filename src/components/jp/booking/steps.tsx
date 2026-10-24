@@ -121,6 +121,7 @@ export function SummaryStep({
   slots,
   breakdown,
   creditApplied = 0,
+  pointsUsed = 0,
   courtName,
   invoice,
 }: {
@@ -130,6 +131,7 @@ export function SummaryStep({
   slots: Slot[];
   breakdown: PriceBreakdown;
   creditApplied?: number;
+  pointsUsed?: number;
   courtName?: string | null;
   /** GST invoice option — omitted when signed out. */
   invoice?: {
@@ -191,7 +193,7 @@ export function SummaryStep({
           )}
         </div>
       ) : null}
-      <PriceCard breakdown={breakdown} creditApplied={creditApplied} />
+      <PriceCard breakdown={breakdown} creditApplied={creditApplied} pointsUsed={pointsUsed} />
     </div>
   );
 }
@@ -199,9 +201,11 @@ export function SummaryStep({
 export function PriceCard({
   breakdown,
   creditApplied = 0,
+  pointsUsed = 0,
 }: {
   breakdown: PriceBreakdown;
   creditApplied?: number;
+  pointsUsed?: number;
 }) {
   const payable = Math.max(0, breakdown.total - creditApplied);
   return (
@@ -219,7 +223,7 @@ export function PriceCard({
         {creditApplied > 0 ? (
           <div className="flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5 font-semibold text-primary">
-              <Gift className="h-3.5 w-3.5" /> Reward credit applied
+              <Gift className="h-3.5 w-3.5" /> Reward points{pointsUsed > 0 ? ` (${pointsUsed.toLocaleString("en-IN")} pts)` : ""}
             </span>
             <span className="font-semibold text-primary">-{formatINR(creditApplied)}</span>
           </div>
@@ -248,6 +252,72 @@ export type PaymentMethod = "upi" | "card" | "netbanking";
 
 const upiApps = ["Google Pay", "PhonePe", "Paytm", "BHIM"];
 
+export type PointsRedeemProps = {
+  balance: number;
+  /** Highest points usable on this booking under the admin's rules. */
+  maxPoints: number;
+  /** ₹ discount that maximum gives. */
+  maxCreditInr: number;
+  maxPercent: number;
+  minPoints: number;
+  enabled: boolean;
+  onToggle: (on: boolean) => void;
+};
+
+function PointsRedeemCard({
+  balance,
+  maxPoints,
+  maxCreditInr,
+  maxPercent,
+  minPoints,
+  enabled,
+  onToggle,
+}: PointsRedeemProps) {
+  if (balance <= 0) return null;
+  const usable = maxPoints > 0 && maxPoints >= minPoints;
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-4">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+        <Gift className="h-4.5 w-4.5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground">
+          {usable
+            ? `Use ${maxPoints.toLocaleString("en-IN")} points — save ${formatINR(maxCreditInr)}`
+            : `You have ${balance.toLocaleString("en-IN")} reward points`}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {usable
+            ? `You have ${balance.toLocaleString("en-IN")} pts · up to ${maxPercent}% of a booking`
+            : minPoints > balance
+              ? `You need at least ${minPoints.toLocaleString("en-IN")} points to redeem`
+              : "Points can't be used on this booking"}
+        </p>
+      </div>
+      {usable ? (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Use reward points"
+          onClick={() => onToggle(!enabled)}
+          className={cn(
+            "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+            enabled ? "bg-primary" : "bg-border",
+          )}
+        >
+          <span
+            className={cn(
+              "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all",
+              enabled ? "left-[22px]" : "left-0.5",
+            )}
+          />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export function PaymentStep({
   method,
   onMethodChange,
@@ -256,7 +326,8 @@ export function PaymentStep({
   onUpiIdChange,
   error,
   creditApplied = 0,
-  availableCredit = 0,
+  pointsUsed = 0,
+  points,
   savedUpiMethods = [],
 }: {
   method: PaymentMethod;
@@ -266,7 +337,9 @@ export function PaymentStep({
   onUpiIdChange: (v: string) => void;
   error?: string | null;
   creditApplied?: number;
-  availableCredit?: number;
+  pointsUsed?: number;
+  /** Reward-points redemption controls (hidden when the program is off). */
+  points?: PointsRedeemProps;
   /** Saved UPI IDs from the user's profile — shown as quick-select chips
    *  so returning users don't have to retype a UPI ID every checkout. */
   savedUpiMethods?: { id: string; maskedIdentifier: string; isDefault: boolean }[];
@@ -275,18 +348,7 @@ export function PaymentStep({
     <div className="flex flex-col gap-5">
       <h2 className="text-2xl leading-none">Payment</h2>
 
-      {availableCredit > 0 ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-primary/40 bg-primary/5 p-4">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-            <Gift className="h-4.5 w-4.5" />
-          </span>
-          <p className="text-sm font-semibold text-foreground">
-            {creditApplied > 0
-              ? `Reward credit applied: -${formatINR(creditApplied)}`
-              : `You have ${formatINR(availableCredit)} reward credit`}
-          </p>
-        </div>
-      ) : null}
+      {points ? <PointsRedeemCard {...points} /> : null}
 
       <div
         className={cn(
@@ -413,7 +475,7 @@ export function PaymentStep({
         </p>
       ) : null}
 
-      <PriceCard breakdown={breakdown} creditApplied={creditApplied} />
+      <PriceCard breakdown={breakdown} creditApplied={creditApplied} pointsUsed={pointsUsed} />
     </div>
   );
 }

@@ -17,6 +17,13 @@ import { Button } from "@/components/jp/Button";
 import { EmptyState } from "@/components/jp/states";
 import { useAuth } from "@/lib/auth";
 import { useWallet, type ReferralStatus } from "@/lib/wallet";
+import {
+  applyReferralCode,
+  formatPoints,
+  pointsToInr,
+  useReferralProgram,
+} from "@/lib/referralProgram";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/invite")({
@@ -26,27 +33,37 @@ export const Route = createFileRoute("/invite")({
       {
         name: "description",
         content:
-          "Refer a friend to JustPlay and both of you get ₹100 off your next sports venue booking in Kanpur.",
+          "Refer a friend to JustPlay and both of you earn reward points to use on your next sports venue booking in Kanpur.",
       },
       { property: "og:title", content: "Invite Friends & Earn Rewards | JustPlay" },
       {
         property: "og:description",
-        content: "Invite a friend, both get ₹100 off your next booking.",
+        content: "Invite a friend, both of you earn reward points.",
       },
     ],
   }),
   component: InvitePage,
 });
 
-const howItWorks = [
-  { icon: UserPlus, title: "Share your code", desc: "Send your referral link to a friend" },
-  {
-    icon: Ticket,
-    title: "They book their first slot",
-    desc: "Any venue, any sport, anywhere in Kanpur",
-  },
-  { icon: Gift, title: "Dono ko ₹100 off", desc: "Credit lands in both wallets instantly" },
-];
+function howItWorksFor(program: ReturnType<typeof useReferralProgram>["program"]) {
+  return [
+    { icon: UserPlus, title: "Share your code", desc: "Send your referral link to a friend" },
+    program.trigger === "signup"
+      ? { icon: Ticket, title: "They sign up", desc: "They join JustPlay using your code" }
+      : {
+          icon: Ticket,
+          title: "They book their first slot",
+          desc: program.minBookingAmount > 0
+            ? `Any venue, any sport — booking of ₹${program.minBookingAmount.toLocaleString("en-IN")}+`
+            : "Any venue, any sport, anywhere in Kanpur",
+        },
+    {
+      icon: Gift,
+      title: "You both earn points",
+      desc: `You get ${formatPoints(program.referrerPoints)}, they get ${formatPoints(program.refereePoints)}`,
+    },
+  ];
+}
 
 const statusMeta: Record<ReferralStatus, { label: string; className: string }> = {
   invited: {
@@ -66,8 +83,12 @@ const statusMeta: Record<ReferralStatus, { label: string; className: string }> =
 function InvitePage() {
   const navigate = useNavigate();
   const { user, isAuthenticated, hydrated } = useAuth();
-  const { balance, referralCode, referrals, transactions } = useWallet();
+  const { balance, referralCode, referrals, transactions, wasReferred, refresh } = useWallet();
+  const { program } = useReferralProgram();
+  const howItWorks = howItWorksFor(program);
   const [copied, setCopied] = useState(false);
+  const [friendCode, setFriendCode] = useState("");
+  const [applying, setApplying] = useState(false);
 
   if (!hydrated)
     return (
@@ -82,7 +103,7 @@ function InvitePage() {
         <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-24 text-center">
           <h1 className="text-4xl leading-none">Log in to see your referral code</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Invite friends and earn ₹100 credit every time one of them books their first slot.
+            Invite friends and earn reward points you can use on your bookings.
           </p>
           <Button
             className="mt-6"
@@ -96,8 +117,8 @@ function InvitePage() {
     );
   }
 
-  const shareLink = `https://justplay.app/r/${referralCode}`;
-  const shareText = `Play sports in Kanpur with me on JustPlay! Use my code ${referralCode} and we both get ₹100 off — ${shareLink}`;
+  const shareLink = `${typeof window !== "undefined" ? window.location.origin : "https://justplay.app"}/r/${referralCode}`;
+  const shareText = `Play sports in Kanpur with me on JustPlay! Use my code ${referralCode} and we both earn ${formatPoints(program.refereePoints)} — ${shareLink}`;
 
   const copyLink = async () => {
     try {
@@ -130,7 +151,11 @@ function InvitePage() {
       <PageHeader
         eyebrow="Rewards"
         title="Invite Friends, Get Rewarded"
-        subtitle="Every friend who plays their first game on JustPlay puts ₹100 in both your wallets."
+        subtitle={
+          program.enabled
+            ? `Every friend who joins JustPlay earns you ${formatPoints(program.referrerPoints)} — and them ${formatPoints(program.refereePoints)}.`
+            : "Share JustPlay with your friends."
+        }
       />
 
       <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
@@ -179,6 +204,50 @@ function InvitePage() {
           ))}
         </div>
 
+        {/* Use a friend's code */}
+        {program.enabled && !wasReferred ? (
+          <div className="mt-8 surface-card rounded-2xl p-5 sm:p-6">
+            <p className="text-sm font-bold">Got a friend's referral code?</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              New here? Add it now and you'll earn {formatPoints(program.refereePoints)}
+              {program.trigger === "signup" ? "." : " after your first booking."}
+            </p>
+            <form
+              className="mt-3 flex gap-2"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!friendCode.trim()) return;
+                setApplying(true);
+                try {
+                  const res = await applyReferralCode(friendCode);
+                  toast.success(
+                    res.rewardedNow
+                      ? `Done! ${formatPoints(res.refereePoints)} added to your account.`
+                      : "Code applied — your reward arrives after your first booking.",
+                  );
+                  setFriendCode("");
+                  await refresh();
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "Couldn't apply that code.");
+                } finally {
+                  setApplying(false);
+                }
+              }}
+            >
+              <input
+                value={friendCode}
+                onChange={(e) => setFriendCode(e.target.value.toUpperCase())}
+                placeholder="e.g. JP3FA9C2"
+                maxLength={12}
+                className="min-w-0 flex-1 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-primary"
+              />
+              <Button type="submit" size="sm" disabled={applying || !friendCode.trim()}>
+                {applying ? "Applying…" : "Apply"}
+              </Button>
+            </form>
+          </div>
+        ) : null}
+
         {/* Wallet balance */}
         <div className="mt-8 surface-card rounded-2xl p-5 sm:p-6">
           <div className="flex items-center justify-between gap-4">
@@ -188,19 +257,29 @@ function InvitePage() {
               </span>
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Reward wallet
+                  Reward points
                 </p>
                 <p className="font-display text-3xl leading-none">
-                  ₹{balance.toLocaleString("en-IN")}
+                  {balance.toLocaleString("en-IN")}
+                  <span className="ml-1.5 text-base text-muted-foreground">pts</span>
                 </p>
+                {program.redemptionEnabled && balance > 0 ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Worth ≈ ₹{pointsToInr(balance, program).toLocaleString("en-IN")}
+                  </p>
+                ) : null}
               </div>
             </div>
             <span className="hidden shrink-0 max-w-[14rem] text-right text-xs text-muted-foreground sm:block">
-              Auto-applied as credit at checkout on your next booking
+              {program.redemptionEnabled
+                ? `Use up to ${program.maxRedeemPercent}% of any booking with points at checkout`
+                : "Points can't be redeemed right now"}
             </span>
           </div>
           <p className="mt-3 text-xs text-muted-foreground sm:hidden">
-            Auto-applied as credit at checkout on your next booking.
+            {program.redemptionEnabled
+              ? `Use up to ${program.maxRedeemPercent}% of any booking with points at checkout.`
+              : "Points can't be redeemed right now."}
           </p>
 
           {transactions.length > 0 ? (
@@ -214,7 +293,7 @@ function InvitePage() {
                       t.amount >= 0 ? "text-primary" : "text-muted-foreground",
                     )}
                   >
-                    {t.amount >= 0 ? "+" : "-"}₹{Math.abs(t.amount).toLocaleString("en-IN")}
+                    {t.amount >= 0 ? "+" : "-"}{Math.abs(t.amount).toLocaleString("en-IN")} pts
                   </span>
                 </li>
               ))}
@@ -260,7 +339,7 @@ function InvitePage() {
                       )}
                     >
                       {statusMeta[r.status].label}
-                      {r.status === "completed" && r.rewardAmount ? ` · +₹${r.rewardAmount}` : ""}
+                      {r.status === "completed" && r.rewardAmount ? ` · +${r.rewardAmount} pts` : ""}
                     </span>
                   </li>
                 ))}

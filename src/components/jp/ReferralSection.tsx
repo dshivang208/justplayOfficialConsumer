@@ -2,14 +2,30 @@ import { Link } from "@tanstack/react-router";
 import { Gift, Ticket, UserPlus } from "lucide-react";
 import { Section } from "./SectionHeading";
 import { Button } from "./Button";
-
-const perks = [
-  { icon: UserPlus, label: "Invite a friend with your code" },
-  { icon: Ticket, label: "They book their first slot" },
-  { icon: Gift, label: "Dono ko ₹100 off — instantly" },
-];
+import { formatPoints, pointsToInr, useReferralProgram } from "@/lib/referralProgram";
 
 export function ReferralSection() {
+  const { program } = useReferralProgram();
+  // The admin can switch the whole program off — then the section disappears.
+  if (!program.enabled) return null;
+
+  const onSignup = program.trigger === "signup";
+  const perks = [
+    { icon: UserPlus, label: "Invite a friend with your code" },
+    {
+      icon: Ticket,
+      label: onSignup ? "They sign up with your code" : "They book their first slot",
+    },
+    {
+      icon: Gift,
+      label:
+        program.referrerPoints === program.refereePoints
+          ? `Dono ko ${formatPoints(program.referrerPoints)} — use them on bookings`
+          : `You get ${formatPoints(program.referrerPoints)}, they get ${formatPoints(program.refereePoints)}`,
+    },
+  ];
+  const worth = pointsToInr(program.referrerPoints, program);
+
   return (
     <Section id="invite">
       <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-surface p-8 md:p-12">
@@ -23,8 +39,9 @@ export function ReferralSection() {
               Invite friends,<span className="text-primary"> get rewarded.</span>
             </h2>
             <p className="mt-4 max-w-lg text-sm text-muted-foreground sm:text-base">
-              Har dost jo JustPlay pe khelta hai, aapko ₹100 deta hai. Invite a friend — both of
-              you get ₹100 off your next booking.
+              Har dost jo JustPlay join karta hai, aapko {formatPoints(program.referrerPoints)} deta
+              hai{worth > 0 ? ` (≈ ₹${worth.toLocaleString("en-IN")} off)` : ""}. Invite a friend —
+              your points work like cash on your next booking.
             </p>
             <Button asChild size="lg" variant="accent" className="mt-7">
               <Link to="/invite">Invite Friends</Link>

@@ -4,6 +4,14 @@ import { ArrowLeft, Loader2, Phone, ShieldCheck } from "lucide-react";
 import { Navbar } from "@/components/jp/Navbar";
 import { Button } from "@/components/jp/Button";
 import { DEMO_OTP, formatPhone, normalizePhone, useAuth } from "@/lib/auth";
+import {
+  applyReferralCode,
+  clearPendingReferralCode,
+  formatPoints,
+  getPendingReferralCode,
+  useReferralProgram,
+} from "@/lib/referralProgram";
+import { toast } from "sonner";
 
 type Search = { redirect?: string };
 
@@ -40,6 +48,8 @@ function AuthPage() {
   const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [referral, setReferral] = useState(() => getPendingReferralCode());
+  const { program } = useReferralProgram();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
@@ -110,12 +120,30 @@ function AuthPage() {
     }
   };
 
-  const submitOnboarding = () => {
+  const submitOnboarding = async () => {
     if (name.trim().length < 2) {
       setError("Tell us your name so hosts know who's playing.");
       return;
     }
     completeOnboarding({ name, email });
+    // A friend's code is a bonus — a bad code must never block signup.
+    const code = referral.trim();
+    if (code && program.enabled) {
+      try {
+        const res = await applyReferralCode(code);
+        clearPendingReferralCode();
+        toast.success(
+          res.rewardedNow
+            ? `Referral applied — ${formatPoints(res.refereePoints)} added!`
+            : `Referral applied — you'll earn ${formatPoints(res.refereePoints)} after your first booking.`,
+        );
+      } catch (e) {
+        clearPendingReferralCode();
+        const msg = e instanceof Error ? e.message : "Couldn't apply that code.";
+        // A shared link may already have applied this code at sign-in.
+        if (!msg.includes("already used")) toast.error(msg);
+      }
+    }
     goNext();
   };
 
@@ -260,9 +288,30 @@ function AuthPage() {
                 className="mt-2 h-12 w-full rounded-xl border border-border bg-surface px-3 text-base font-semibold outline-none focus:border-primary"
               />
 
+              {program.enabled ? (
+                <>
+                  <label htmlFor="referral" className="mt-4 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Referral code <span className="font-medium normal-case">(optional)</span>
+                  </label>
+                  <input
+                    id="referral"
+                    value={referral}
+                    onChange={(e) => setReferral(e.target.value.toUpperCase())}
+                    placeholder="Friend's code"
+                    maxLength={12}
+                    className="mt-2 h-12 w-full rounded-xl border border-border bg-surface px-3 text-base font-semibold uppercase tracking-wide outline-none focus:border-primary"
+                  />
+                  {program.refereePoints > 0 ? (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Get {formatPoints(program.refereePoints)} with a friend's code.
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+
               {error ? <p className="mt-3 text-xs font-semibold text-destructive">{error}</p> : null}
 
-              <Button className="mt-5 w-full" size="lg" onClick={submitOnboarding}>
+              <Button className="mt-5 w-full" size="lg" onClick={() => void submitOnboarding()}>
                 Start playing
               </Button>
             </>
