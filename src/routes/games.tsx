@@ -103,9 +103,16 @@ function GamesPage() {
         title="Hosted Games Near You"
         subtitle="Games already booked by players in Kanpur. Filter, join and show up — no group chat chaos."
         action={
-          <Button asChild size="lg">
-            <Link to="/host">Host a Game</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {isAuthenticated ? (
+              <Button asChild size="lg" variant="outline">
+                <Link to="/game-history">My game history</Link>
+              </Button>
+            ) : null}
+            <Button asChild size="lg">
+              <Link to="/host">Host a Game</Link>
+            </Button>
+          </div>
         }
       />
 

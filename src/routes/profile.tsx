@@ -372,6 +372,16 @@ function ProfilePage() {
 
         <section className="surface-card mt-5 rounded-2xl p-2">
           <Link
+            to="/game-history"
+            className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 hover:bg-secondary"
+          >
+            <div>
+              <p className="text-sm font-semibold">Game history</p>
+              <p className="text-xs text-muted-foreground">Games you hosted or played</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
+          <Link
             to="/invite"
             className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 hover:bg-secondary"
           >

@@ -155,6 +155,14 @@ function parseHourRange(label: string): { startHour: number; endHour: number } {
   return { startHour: parse(startPart), endHour: parse(endPart) };
 }
 
+/** Has a game finished? Date + end hour are Indian time (the app is Kanpur-only).
+ *  An end hour at/before the start means it runs past midnight. */
+export function hasGameEnded(dateISO: string, startHour: number, endHour: number, now = Date.now()) {
+  const end = endHour <= startHour ? endHour + 24 : endHour;
+  const endMs = new Date(`${dateISO}T00:00:00+05:30`).getTime() + end * 3_600_000;
+  return now >= endMs;
+}
+
 type ProfileMap = Record<string, { name: string; initials: string; photoUrl: string | null }>;
 
 async function fetchProfiles(ids: string[]): Promise<ProfileMap> {
@@ -274,7 +282,10 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
         description: row.description ?? "",
         joinPolicy: row.join_policy,
         groupId: row.group_id ?? undefined,
-        status: row.status,
+        status:
+          row.status === "active" && hasGameEnded(row.date, startHour, endHour)
+            ? "completed"
+            : row.status,
         isMine: user ? row.host_user_id === user.id : false,
       };
     });
@@ -438,6 +449,20 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
   // the games list picks it up automatically — no manual refresh needed.
   // Requires `hosted_games` and `game_participants` to be added to the
   // `supabase_realtime` publication (see the realtime migration).
+  // Games finish with the clock, not with a database event — re-evaluate
+  // every few minutes so an ended game drops off the landing page by itself.
+  useEffect(() => {
+    // Also let the database stamp finished games 'completed' (best-effort —
+    // the app already treats them as completed from the clock alone).
+    const stamp = () => void supabase.rpc("complete_past_hosted_games").then(() => undefined);
+    stamp();
+    const t = setInterval(() => {
+      stamp();
+      void loadGames();
+    }, 5 * 60_000);
+    return () => clearInterval(t);
+  }, [loadGames]);
+
   useEffect(() => {
     const channel = supabase
       .channel("hosted-games-live")
@@ -821,7 +846,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       unregisterEvent,
       startEventRegistration,
       releaseEventRegistration,
-      myGames: games.filter((g) => g.isMine),
+      myGames: games.filter((g) => g.isMine && g.status === "active"),
       myGroups: groups.filter((g) => joinedGroupIds.includes(g.id)),
       gamesForGroup: (groupId) =>
         games.filter((g) => g.groupId === groupId && g.status === "active"),

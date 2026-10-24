@@ -41,7 +41,9 @@ export type Game = {
   description: string;
   joinPolicy: "open" | "approval";
   groupId?: string;
-  status: "active" | "cancelled";
+  /** "completed" = the game's date/time has passed (derived on the client
+   *  from the date + end hour in IST, and also stored by the server). */
+  status: "active" | "cancelled" | "completed";
   isMine?: boolean;
 };
 

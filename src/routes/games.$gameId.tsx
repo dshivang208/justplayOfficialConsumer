@@ -79,7 +79,7 @@ function GameDetailPage() {
   const pct = Math.min(100, Math.round((game.players.length / game.spotsTotal) * 100));
   const price = perHead(game);
   const cancelled = game.status === "cancelled";
-  const past = daysUntil(game.dateISO) < 0;
+  const past = daysUntil(game.dateISO) < 0 || game.status === "completed";
 
   const handleJoin = async () => {
     if (!isAuthenticated) {
@@ -232,7 +232,15 @@ function GameDetailPage() {
           {joined && !game.isMine ? <HostMessages gameId={game.id} /> : null}
 
           <div className="mt-6 border-t border-border pt-5">
-            {game.isMine ? (
+            {game.isMine && past && !cancelled ? (
+              <p className="text-center text-sm font-semibold text-muted-foreground">
+                This game is over — it's saved in your{" "}
+                <Link to="/game-history" className="text-primary hover:underline">
+                  game history
+                </Link>
+                .
+              </p>
+            ) : game.isMine ? (
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   variant="outline"
@@ -256,9 +264,14 @@ function GameDetailPage() {
               <p className="text-center text-sm font-semibold text-destructive">
                 This game was cancelled by the host.
               </p>
-            ) : past && !joined && !requested ? (
+            ) : past && !requested ? (
               <p className="text-center text-sm font-semibold text-muted-foreground">
-                This game has already happened.
+                {joined ? "You played this game — " : "This game has already happened. "}
+                {joined ? (
+                  <Link to="/game-history" className="text-primary hover:underline">
+                    see your game history
+                  </Link>
+                ) : null}
               </p>
             ) : joined ? (
               <Button
