@@ -84,29 +84,39 @@ export function GameCard({
     return (
       <article
         className={cn(
-          "surface-card flex flex-col gap-3 rounded-2xl p-4 transition-colors hover:border-primary/60 sm:flex-row sm:items-center sm:gap-5",
+          "surface-card flex items-center gap-3 rounded-xl p-3 transition-colors hover:border-primary/60 sm:gap-5 sm:rounded-2xl sm:p-4",
           (cancelled || past) && "opacity-60",
           className,
         )}
       >
-        <div className="min-w-0 sm:w-56 sm:shrink-0">
+        {/* Left: what & where (+ a compact when/spots line on phones) */}
+        <div className="min-w-0 flex-1 sm:w-56 sm:flex-none">
           <div className="flex items-center gap-2">
             <SportTag sport={game.sport} />
-            <span className="rounded-lg border border-border px-2 py-0.5 text-[11px] font-semibold text-accent">
+            <span className="truncate text-[11px] font-semibold text-accent">
               {cancelled ? "Cancelled" : past ? "Game over" : relativeDayLabel(game.dateISO)}
             </span>
           </div>
-          <h3 className="mt-2 truncate text-lg leading-tight">
+          <h3 className="mt-1.5 truncate text-base leading-tight sm:text-lg">
             <Link to="/games/$gameId" params={{ gameId: game.id }} className="hover:text-primary">
               {game.venueName}
             </Link>
           </h3>
-          <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-            <MapPin className="h-3.5 w-3.5" /> {game.area}
+          <p className="mt-0.5 inline-flex max-w-full items-center gap-1 text-xs text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{game.area}</span>
+          </p>
+          <p className="mt-1 truncate text-xs text-muted-foreground sm:hidden">
+            {gameTimeLabel(game)} ·{" "}
+            <span className="font-semibold text-foreground">
+              {filled}/{game.spotsTotal}
+            </span>{" "}
+            joined{spotsLeft > 0 && spotsLeft <= 2 ? ` · ${spotsLeft} left` : ""}
           </p>
         </div>
 
-        <div className="min-w-0 flex-1 space-y-1.5 text-sm">
+        {/* Middle: details (tablet / desktop) */}
+        <div className="hidden min-w-0 flex-1 space-y-1.5 text-sm sm:block">
           <p className="inline-flex items-center gap-2 text-muted-foreground">
             <Clock className="h-4 w-4 text-primary" /> {gameTimeLabel(game)}
           </p>
@@ -125,13 +135,14 @@ export function GameCard({
             <span className={spotsLeft <= 2 ? "font-bold text-accent" : "text-muted-foreground"}>
               {spotsLeft > 0 ? `${spotsLeft} spots left` : "Full"}
             </span>
-            <div className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-muted sm:block">
+            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
               <div className="gradient-primary h-full rounded-full" style={{ width: `${pct}%` }} />
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4 border-t border-border pt-3 sm:w-44 sm:flex-col sm:items-end sm:justify-center sm:gap-2 sm:border-0 sm:pt-0">
+        {/* Right: price + action, always beside the info */}
+        <div className="flex shrink-0 flex-col items-end gap-2 sm:w-40 sm:justify-center">
           <span className="text-sm font-bold text-foreground">{priceLabel}</span>
           {action}
         </div>
