@@ -61,7 +61,7 @@ export function HostGameSection() {
         </div>
 
         <div className="relative">
-          <div className="absolute -inset-6 -z-10 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute -inset-2 -z-10 rounded-full bg-primary/10 blur-3xl sm:-inset-6" />
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
             Example hosted game
           </p>
