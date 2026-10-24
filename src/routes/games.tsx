@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Users } from "lucide-react";
+import { LayoutGrid, List, Users } from "lucide-react";
 import { PageShell, PageHeader, Chip } from "@/components/jp/PageShell";
 import { Button } from "@/components/jp/Button";
 import { GameCard } from "@/components/jp/GameCard";
@@ -51,6 +51,7 @@ function GamesPage() {
   const manageGame = manageGameId ? (games.find((g) => g.id === manageGameId) ?? null) : null;
 
   const [tab, setTab] = useState<"all" | "joined" | "mine">(initialTab ?? "all");
+  const [view, setView] = useState<"grid" | "list">("list");
   const [sport, setSport] = useState("All");
   const [skillLevel, setSkillLevel] = useState<SkillLevel | "All">("All");
   const [dateFilter, setDateFilter] = useState<DateFilter>("All");
@@ -134,15 +135,43 @@ function GamesPage() {
         </div>
 
         <div className="mt-5 flex flex-col gap-3">
-          <div className="flex flex-wrap gap-2">
-            <Chip active={sport === "All"} onClick={() => setSport("All")}>
-              All sports
-            </Chip>
-            {sports.slice(0, 8).map((s) => (
-              <Chip key={s.id} active={sport === s.name} onClick={() => setSport(s.name)}>
-                {s.emoji} {s.name}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              <Chip active={sport === "All"} onClick={() => setSport("All")}>
+                All sports
               </Chip>
-            ))}
+              {sports.slice(0, 8).map((s) => (
+                <Chip key={s.id} active={sport === s.name} onClick={() => setSport(s.name)}>
+                  {s.emoji} {s.name}
+                </Chip>
+              ))}
+            </div>
+            <div className="flex shrink-0 overflow-hidden rounded-full border border-border">
+              <button
+                type="button"
+                aria-label="Grid view"
+                onClick={() => setView("grid")}
+                className={
+                  view === "grid"
+                    ? "bg-primary p-2 text-primary-foreground"
+                    : "bg-surface p-2 text-muted-foreground"
+                }
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                aria-label="List view"
+                onClick={() => setView("list")}
+                className={
+                  view === "list"
+                    ? "bg-primary p-2 text-primary-foreground"
+                    : "bg-surface p-2 text-muted-foreground"
+                }
+              >
+                <List className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             {dateFilters.map((d) => (
@@ -188,10 +217,15 @@ function GamesPage() {
               }
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              className={
+                view === "grid" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3" : "flex flex-col gap-3"
+              }
+            >
               {filtered.map((g) => (
                 <GameCard
                   key={g.id}
+                  view={view}
                   game={g}
                   joined={joinedGameIds.includes(g.id)}
                   requested={requestedGameIds.includes(g.id)}
