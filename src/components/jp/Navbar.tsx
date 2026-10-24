@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { LifeBuoy, Bell, Menu, X, MapPin, CalendarCheck, User, Wallet } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { LifeBuoy, Bell, Menu, X, MapPin, CalendarCheck, User, Wallet, LogOut } from "lucide-react";
 import { Button } from "./Button";
 import { useAuth } from "@/lib/auth";
 import { useWallet } from "@/lib/wallet";
@@ -17,7 +17,8 @@ const links = [
 export function Navbar() {
   const [open, setOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { user, isAuthenticated, hydrated } = useAuth();
+  const navigate = useNavigate();
+  const { user, isAuthenticated, hydrated, logout } = useAuth();
   const { balance } = useWallet();
   const { unreadCount } = useNotifications();
 
@@ -186,6 +187,17 @@ export function Navbar() {
                 >
                   Profile
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    logout();
+                    void navigate({ to: "/", replace: true });
+                  }}
+                  className="mt-1 flex items-center gap-2 border-t border-border px-3 pb-2.5 pt-3.5 text-left text-sm font-semibold text-destructive hover:bg-destructive/5"
+                >
+                  <LogOut className="h-4 w-4" /> Log out
+                </button>
               </>
             ) : null}
           </div>
