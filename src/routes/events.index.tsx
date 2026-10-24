@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Trophy } from "lucide-react";
+import { LayoutGrid, List, Trophy } from "lucide-react";
 import { PageShell, PageHeader, Chip } from "@/components/jp/PageShell";
 import { EventCard } from "@/components/jp/EventCard";
 import { EmptyState } from "@/components/jp/states";
@@ -39,6 +39,7 @@ function EventsPage() {
   const { isAuthenticated } = useAuth();
   const { events, registeredEventIds, registerEvent } = useCommunity();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [view, setView] = useState<"grid" | "list">("list");
 
   const handleRegister = async (event: CommunityEventDetail) => {
     // A paid event needs the Razorpay checkout step, which lives on the
@@ -96,7 +97,35 @@ function EventsPage() {
       />
 
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-        <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <p className="pt-1.5 text-sm text-muted-foreground">
+            {filtered.length} event{filtered.length === 1 ? "" : "s"}
+          </p>
+          <div className="flex shrink-0 overflow-hidden rounded-full border border-border">
+            {(
+              [
+                { key: "grid", label: "Grid view", Icon: LayoutGrid },
+                { key: "list", label: "List view", Icon: List },
+              ] as const
+            ).map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                aria-label={label}
+                aria-pressed={view === key}
+                onClick={() => setView(key)}
+                className={
+                  view === key
+                    ? "bg-primary p-2 text-primary-foreground"
+                    : "bg-surface p-2 text-muted-foreground"
+                }
+              >
+                <Icon className="h-4 w-4" />
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 flex flex-col gap-3">
           <div className="flex flex-wrap gap-2">
             <Chip active={kind === "All"} onClick={() => setKind("All")}>
               All types
@@ -149,10 +178,15 @@ function EventsPage() {
               description="New tournaments drop every month. Try a different sport or type."
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              className={
+                view === "grid" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3" : "flex flex-col gap-3"
+              }
+            >
               {filtered.map((ev) => (
                 <EventCard
                   key={ev.id}
+                  view={view}
                   event={ev}
                   registered={registeredEventIds.includes(ev.id)}
                   registering={busyId === ev.id}
