@@ -24,6 +24,7 @@ import {
 } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
+import { detachPushFromAccount } from "./push";
 
 export type JPUser = {
   id: string;
@@ -273,7 +274,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // localStorage entry) is revoked right behind it.
     setSession(null);
     setProfile(null);
-    void supabase.auth.signOut().catch((e) => console.error("signOut failed:", e));
+    // Detach this browser from the account first (needs the live session), so a
+    // shared device never receives the previous user's pushes.
+    void detachPushFromAccount()
+      .then(() => supabase.auth.signOut())
+      .catch((e) => console.error("signOut failed:", e));
   }, []);
 
   const value = useMemo<AuthContextValue>(

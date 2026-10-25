@@ -8,13 +8,10 @@
  * Polls every 45s rather than a realtime subscription — simple, and
  * fine for something a user checks occasionally rather than a live chat.
  *
- * Also owns real Web Push subscription (RFC 8030 + VAPID) — registering
- * the service worker (public/sw.js), asking browser permission, and
- * saving the resulting subscription to `push_subscriptions` so the admin
- * app's send function can actually push to this browser. This is genuine
- * browser/OS-level push (works even with no tab open), not a simulation
- * — but it's the Web Push standard, not FCM/APNs, since this is a web
- * app with no native mobile client to hold a device token.
+ * Also owns web push via Firebase Cloud Messaging (src/lib/push.ts): asking
+ * browser permission, saving this browser's FCM token, and showing pushes
+ * that arrive while the app is open. Closed-tab delivery is handled by
+ * public/firebase-messaging-sw.js.
  */
 import {
   createContext,
@@ -25,8 +22,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
 import { useAuth } from "./auth";
 import { supabase } from "./supabaseClient";
+import {
+  currentPushState,
+  disablePush as disablePushCore,
+  enablePush as enablePushCore,
+  onForegroundPush,
+  pushUnsupportedReason,
+  refreshPushToken,
+} from "./push";
 
 export type AppNotification = {
   id: string;
@@ -58,35 +64,6 @@ const NotificationsContext = createContext<NotificationsContextValue | null>(nul
 type Row = { id: string; message: string; created_at: string; read_at: string | null };
 
 const POLL_INTERVAL_MS = 45_000;
-
-/** The Push API wants the VAPID public key as a raw Uint8Array, not the
- *  base64url string it's distributed as. */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = atob(base64);
-  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
-}
-
-function pushSupported() {
-  return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
-}
-
-/** Null means supported. Checked in a specific order so the message
- *  points at the actual blocking reason rather than a generic
- *  "unsupported" — the secure-context check in particular is the most
- *  likely real cause when testing from a LAN IP or a non-localhost dev
- *  hostname over plain HTTP (plain http://localhost itself IS treated as
- *  a secure context by browsers, so that specific case is fine). */
-function pushUnsupportedReason(): string | null {
-  if (typeof window === "undefined") return null; // SSR pass — not a real answer either way
-  if (!window.isSecureContext) {
-    return "Push notifications need HTTPS (http://localhost itself is fine, but a LAN IP or other hostname over plain HTTP is not).";
-  }
-  if (!("serviceWorker" in navigator)) return "This browser doesn't support service workers.";
-  if (!("PushManager" in window)) return "This browser doesn't support push notifications.";
-  return null;
-}
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
@@ -134,27 +111,45 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [isAuthenticated, refresh]);
 
-  // Reflect whatever the browser/this device already knows, on load —
-  // e.g. a subscription made in an earlier session, or the user having
-  // denied the permission prompt previously.
+  // Reflect what this browser already knows, on load.
   useEffect(() => {
-    const reason = pushUnsupportedReason();
-    if (reason) {
+    const st = currentPushState();
+    if (st === "unsupported") {
       setPushState("unsupported");
-      setPushError(reason);
-      return;
-    }
-    if (Notification.permission === "denied") {
+      setPushError(pushUnsupportedReason());
+    } else if (st === "unconfigured") {
+      setPushState("unsupported");
+      setPushError("Push notifications aren't set up on this site yet.");
+    } else if (st === "denied") {
       setPushState("denied");
       setPushError("Notifications are blocked for this site in your browser settings.");
-      return;
+    } else {
+      setPushState(st === "enabled" ? "subscribed" : "default");
     }
-    navigator.serviceWorker
-      .getRegistration("/sw.js")
-      .then((reg) => reg?.pushManager.getSubscription())
-      .then((sub) => setPushState(sub ? "subscribed" : "default"))
-      .catch(() => setPushState("default"));
   }, []);
+
+  // Signed in + already allowed: keep this browser's token attached to the account.
+  useEffect(() => {
+    if (isAuthenticated) void refreshPushToken("consumer");
+  }, [isAuthenticated, user?.id]);
+
+  // A push that lands while the app is open: refresh the bell and toast it.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let off: (() => void) | undefined;
+    let cancelled = false;
+    void onForegroundPush((m) => {
+      void refresh();
+      toast(m.body || m.title);
+    }).then((u) => {
+      if (cancelled) u();
+      else off = u;
+    });
+    return () => {
+      cancelled = true;
+      off?.();
+    };
+  }, [isAuthenticated, refresh]);
 
   const markAsRead = useCallback((id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
@@ -186,80 +181,20 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setPushError(null);
     try {
       if (!user) throw new Error("Sign in first.");
-      const unsupportedReason = pushUnsupportedReason();
-      if (unsupportedReason) throw new Error(unsupportedReason);
-
-      const vapidPublicKey = import.meta.env["VITE_VAPID_PUBLIC_KEY"] as string | undefined;
-      if (!vapidPublicKey) {
-        throw new Error(
-          "Push isn't configured on this deployment yet (missing VITE_VAPID_PUBLIC_KEY at build time — set it and restart/rebuild the dev server).",
-        );
-      }
-
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        setPushState(permission === "denied" ? "denied" : "default");
-        throw new Error(
-          permission === "denied"
-            ? "Notification permission was denied."
-            : "Notification permission wasn't granted.",
-        );
-      }
-
-      const registration = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
-
-      const existing = await registration.pushManager.getSubscription();
-      const subscription =
-        existing ??
-        (await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
-        }));
-
-      const json = subscription.toJSON();
-      if (!json.endpoint || !json.keys?.["p256dh"] || !json.keys?.["auth"]) {
-        throw new Error("Could not read the push subscription details.");
-      }
-
-      const { error } = await supabase.from("push_subscriptions").upsert(
-        {
-          user_id: user.id,
-          endpoint: json.endpoint,
-          p256dh: json.keys["p256dh"],
-          auth: json.keys["auth"],
-        },
-        { onConflict: "endpoint" },
-      );
-      if (error) throw new Error(error.message);
-
+      await enablePushCore("consumer");
       setPushState("subscribed");
     } catch (e) {
       const messageText = e instanceof Error ? e.message : "Could not enable push notifications.";
       setPushError(messageText);
+      if (Notification.permission === "denied") setPushState("denied");
       throw e instanceof Error ? e : new Error(messageText);
     }
   }, [user]);
 
   const disablePush = useCallback(async () => {
-    if (!pushSupported()) return;
-    try {
-      const registration = await navigator.serviceWorker.getRegistration("/sw.js");
-      const subscription = await registration?.pushManager.getSubscription();
-      if (subscription) {
-        const endpoint = subscription.endpoint;
-        await subscription.unsubscribe();
-        const { error } = await supabase
-          .from("push_subscriptions")
-          .delete()
-          .eq("endpoint", endpoint);
-        if (error) console.error("delete push_subscriptions row failed:", error.message);
-      }
-      setPushState("default");
-      setPushError(null);
-    } catch (e) {
-      console.error("disablePush failed:", e instanceof Error ? e.message : e);
-    }
+    await disablePushCore();
+    setPushState("default");
+    setPushError(null);
   }, []);
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);

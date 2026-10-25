@@ -84,14 +84,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "JustPlay — Book sports venues in Kanpur" },
+      {
+        name: "description",
+        content: "Find and book football turfs, badminton courts, cricket nets and more in Kanpur. Host games, join events, earn rewards.",
+      },
+      { property: "og:title", content: "JustPlay — Book sports venues in Kanpur" },
+      {
+        property: "og:description",
+        content: "Book sports venues in Kanpur, host games, join events and earn rewards.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
