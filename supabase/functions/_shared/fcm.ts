@@ -9,12 +9,31 @@ type ServiceAccount = { project_id: string; client_email: string; private_key: s
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
 function loadServiceAccount(): ServiceAccount {
-  const raw = Deno.env.get("FCM_SERVICE_ACCOUNT");
-  if (!raw) throw new Error("FCM_SERVICE_ACCOUNT secret is not set");
-  const sa = JSON.parse(raw) as ServiceAccount;
-  if (!sa.project_id || !sa.client_email || !sa.private_key) {
-    throw new Error("FCM_SERVICE_ACCOUNT is missing project_id / client_email / private_key");
+  let raw = (Deno.env.get("FCM_SERVICE_ACCOUNT") ?? "").trim();
+  if (!raw) throw new Error("FCM_SERVICE_ACCOUNT secret is not set in Supabase");
+  // Tolerate a base64-encoded JSON and wrapping quotes (shells love adding them).
+  if (!raw.startsWith("{")) {
+    if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) raw = raw.slice(1, -1);
+    if (!raw.startsWith("{")) {
+      try {
+        raw = atob(raw);
+      } catch {
+        /* fall through to the parse error below */
+      }
+    }
   }
+  let sa: ServiceAccount;
+  try {
+    sa = JSON.parse(raw) as ServiceAccount;
+  } catch {
+    throw new Error(
+      "FCM_SERVICE_ACCOUNT is not valid JSON — paste the entire contents of the downloaded service-account .json file",
+    );
+  }
+  if (!sa.project_id || !sa.client_email || !sa.private_key) {
+    throw new Error("FCM_SERVICE_ACCOUNT is missing project_id / client_email / private_key — wrong file?");
+  }
+  sa.private_key = sa.private_key.replace(/\\n/g, "\n");
   return sa;
 }
 

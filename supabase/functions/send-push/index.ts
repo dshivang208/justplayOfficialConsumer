@@ -70,8 +70,9 @@ Deno.serve(async (req) => {
   try {
     auth = await getAccessToken();
   } catch (e) {
-    console.error("FCM auth failed:", e instanceof Error ? e.message : e);
-    return json({ error: "FCM is not configured correctly" }, 500);
+    const why = e instanceof Error ? e.message : String(e);
+    console.error("FCM auth failed:", why);
+    return json({ error: `FCM is not configured correctly: ${why}` }, 500);
   }
 
   let sent = 0;
