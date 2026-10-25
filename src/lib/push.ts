@@ -110,11 +110,32 @@ async function clearStalePush(): Promise<void> {
   }
 }
 
+/** Catches the most common setup mistake before the browser gives its vague error. */
+function configProblem(): string | null {
+  if (!/^\d+$/.test(firebaseConfig.messagingSenderId)) {
+    return "VITE_FIREBASE_MESSAGING_SENDER_ID must be digits only (check it was copied from Firebase and has no extra text).";
+  }
+  if (!/^[A-Za-z0-9_-]+$/.test(WEB_PUSH_KEY)) {
+    return "VITE_FIREBASE_VAPID_KEY contains invalid characters — paste only the key from Firebase > Cloud Messaging > Web Push certificates.";
+  }
+  try {
+    const b64 = WEB_PUSH_KEY.replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4));
+    if (raw.length !== 65 || raw.charCodeAt(0) !== 4) {
+      return `VITE_FIREBASE_VAPID_KEY is not a valid Web Push key (length ${WEB_PUSH_KEY.length}, expected 87 starting with "B"). Copy the full key again from Firebase.`;
+    }
+  } catch {
+    return "VITE_FIREBASE_VAPID_KEY is not valid base64 — copy the full key again from Firebase.";
+  }
+  return null;
+}
+
 function friendlyPushError(e: unknown): Error {
   const msg = e instanceof Error ? e.message : String(e);
-  if (/push service error|AbortError/i.test(msg)) {
+  const name = e instanceof Error ? e.name : "";
+  if (/push service error|AbortError/i.test(msg + name)) {
     return new Error(
-      "The browser's push service rejected the registration. Use Chrome/Edge/Safari (Brave blocks push unless 'Use Google services for push messaging' is on), check you're online, and try again.",
+      `Push registration was rejected by the browser's push service (${name || "AbortError"}). Check the Firebase Web Push key and Firebase settings, your network (no VPN/private DNS), then try again.`,
     );
   }
   if (/permission-blocked|denied/i.test(msg)) {
@@ -123,10 +144,12 @@ function friendlyPushError(e: unknown): Error {
   if (/token-subscribe-failed|401|403|API key|not valid/i.test(msg)) {
     return new Error("Push setup is misconfigured (Firebase API key / project mismatch). Please contact support.");
   }
-  return e instanceof Error ? e : new Error(msg);
+  return new Error(name ? `${name}: ${msg}` : msg);
 }
 
 async function fetchToken(): Promise<string> {
+  const problem = configProblem();
+  if (problem) throw new Error(problem);
   const messaging = await getMessagingInstance();
   if (!messaging) throw new Error("This browser doesn't support push notifications.");
   const { getToken, deleteToken } = await import("firebase/messaging");
