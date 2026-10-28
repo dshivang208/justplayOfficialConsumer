@@ -140,6 +140,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     void onForegroundPush((m) => {
       void refresh();
+      // Chat message for the conversation that's already open: the message shows live, no toast.
+      const onThatChat =
+        Boolean(m.tag) && /^(group|vgroup)-/.test(m.tag ?? "") && window.location.pathname === m.url;
+      if (onThatChat) return;
+      if (m.tag && /^(group|vgroup)-/.test(m.tag)) {
+        toast(m.title, { description: m.body, action: { label: "Open", onClick: () => window.location.assign(m.url || "/") } });
+        return;
+      }
       toast(m.body || m.title);
     }).then((u) => {
       if (cancelled) u();
