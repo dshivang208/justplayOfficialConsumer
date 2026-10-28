@@ -29,6 +29,7 @@ import { Route as VenuesRouteImport } from './routes/venues'
 import { Route as BookVenueIdRouteImport } from './routes/book.$venueId'
 import { Route as EventsIndexRouteImport } from './routes/events.index'
 import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
+import { Route as GamesIndexRouteImport } from './routes/games.index'
 import { Route as GamesGameIdRouteImport } from './routes/games.$gameId'
 import { Route as GroupsIndexRouteImport } from './routes/groups.index'
 import { Route as GroupsGroupIdRouteImport } from './routes/groups.$groupId'
@@ -140,6 +141,11 @@ const EventsEventIdRoute = EventsEventIdRouteImport.update({
   path: '/$eventId',
   getParentRoute: () => EventsRoute,
 } as any)
+const GamesIndexRoute = GamesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GamesRoute,
+} as any)
 const GamesGameIdRoute = GamesGameIdRouteImport.update({
   id: '/$gameId',
   path: '/$gameId',
@@ -219,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/venue-group/$venueId': typeof VenueGroupVenueIdRoute
   '/venues/$venueId': typeof VenuesVenueIdRoute
   '/events/': typeof EventsIndexRoute
+  '/games/': typeof GamesIndexRoute
   '/groups/': typeof GroupsIndexRoute
   '/support/': typeof SupportIndexRoute
   '/venues/': typeof VenuesIndexRoute
@@ -231,7 +238,6 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/corporate-profile': typeof CorporateProfileRoute
   '/game-history': typeof GameHistoryRoute
-  '/games': typeof GamesRouteWithChildren
   '/host': typeof HostRoute
   '/invite': typeof InviteRoute
   '/notifications': typeof NotificationsRoute
@@ -248,6 +254,7 @@ export interface FileRoutesByTo {
   '/venue-group/$venueId': typeof VenueGroupVenueIdRoute
   '/venues/$venueId': typeof VenuesVenueIdRoute
   '/events': typeof EventsIndexRoute
+  '/games': typeof GamesIndexRoute
   '/groups': typeof GroupsIndexRoute
   '/support': typeof SupportIndexRoute
   '/venues': typeof VenuesIndexRoute
@@ -281,6 +288,7 @@ export interface FileRoutesById {
   '/venue-group/$venueId': typeof VenueGroupVenueIdRoute
   '/venues/$venueId': typeof VenuesVenueIdRoute
   '/events/': typeof EventsIndexRoute
+  '/games/': typeof GamesIndexRoute
   '/groups/': typeof GroupsIndexRoute
   '/support/': typeof SupportIndexRoute
   '/venues/': typeof VenuesIndexRoute
@@ -315,6 +323,7 @@ export interface FileRouteTypes {
     | '/venue-group/$venueId'
     | '/venues/$venueId'
     | '/events/'
+    | '/games/'
     | '/groups/'
     | '/support/'
     | '/venues/'
@@ -327,7 +336,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/corporate-profile'
     | '/game-history'
-    | '/games'
     | '/host'
     | '/invite'
     | '/notifications'
@@ -344,6 +352,7 @@ export interface FileRouteTypes {
     | '/venue-group/$venueId'
     | '/venues/$venueId'
     | '/events'
+    | '/games'
     | '/groups'
     | '/support'
     | '/venues'
@@ -376,6 +385,7 @@ export interface FileRouteTypes {
     | '/venue-group/$venueId'
     | '/venues/$venueId'
     | '/events/'
+    | '/games/'
     | '/groups/'
     | '/support/'
     | '/venues/'
@@ -548,6 +558,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdRouteImport
       parentRoute: typeof EventsRoute
     }
+    '/games/': {
+      id: '/games/'
+      path: '/'
+      fullPath: '/games/'
+      preLoaderRoute: typeof GamesIndexRouteImport
+      parentRoute: typeof GamesRoute
+    }
     '/games/$gameId': {
       id: '/games/$gameId'
       path: '/$gameId'
@@ -636,10 +653,12 @@ const EventsRouteWithChildren =
 
 interface GamesRouteChildren {
   GamesGameIdRoute: typeof GamesGameIdRoute
+  GamesIndexRoute: typeof GamesIndexRoute
 }
 
 const GamesRouteChildren: GamesRouteChildren = {
   GamesGameIdRoute: GamesGameIdRoute,
+  GamesIndexRoute: GamesIndexRoute,
 }
 
 const GamesRouteWithChildren = GamesRoute._addFileChildren(GamesRouteChildren)
