@@ -12,6 +12,8 @@ import { sports } from "@/data/landing";
 import { upcomingDays, formatDateLong, formatINR, isContiguous } from "@/lib/booking";
 import { skillLevels, type SkillLevel } from "@/data/community";
 import { useCommunity } from "@/lib/community";
+import { InvitePlayers, type InvitedPlayer } from "@/components/jp/InvitePlayers";
+import { invitePlayers } from "@/lib/friends";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -81,6 +83,13 @@ function HostGamePage() {
   const [dateISO, setDateISO] = useState(days[0]!.iso);
   const [selected, setSelected] = useState<Slot[]>([]);
 
+  // "I already booked this venue" — skip slot availability, just record date + time.
+  const [preBooked, setPreBooked] = useState(false);
+  const [manualStart, setManualStart] = useState(18);
+  const [manualEnd, setManualEnd] = useState(19);
+  const [manualCost, setManualCost] = useState<string>("");
+  const [invited, setInvited] = useState<InvitedPlayer[]>([]);
+
   const [spotsTotal, setSpotsTotal] = useState(10);
   const [skillLevel, setSkillLevel] = useState<SkillLevel>("Any");
   const [costMode, setCostMode] = useState<"free" | "split">("split");
@@ -126,7 +135,26 @@ function HostGamePage() {
     };
   }, [venue, dateISO, sport]);
 
-  const totalCost = selected.reduce((s, x) => s + x.price, 0);
+  // One source of truth for the chosen time, whichever way it was picked.
+  const startMin = preBooked
+    ? manualStart * 60
+    : selected.length
+      ? Math.min(...selected.map((s) => s.startMinutes))
+      : null;
+  const endMin = preBooked
+    ? manualEnd * 60
+    : selected.length
+      ? Math.max(...selected.map((s) => s.endMinutes))
+      : null;
+  const timeLabelText =
+    startMin !== null && endMin !== null ? `${formatSlotTime(startMin)} – ${formatSlotTime(endMin)}` : "—";
+  const isToday = dateISO === days[0]!.iso;
+  const nowHour = new Date().getHours();
+  const manualValid = manualEnd > manualStart && (!isToday || manualStart > nowHour);
+
+  const totalCost = preBooked
+    ? Math.max(0, Math.round(Number(manualCost) || 0))
+    : selected.reduce((s, x) => s + x.price, 0);
   const costPerHead = costMode === "split" ? Math.round(totalCost / Math.max(spotsTotal, 1)) : 0;
 
   const toggleSlot = (slot: Slot) => {
@@ -139,7 +167,7 @@ function HostGamePage() {
 
   const canNext =
     (step === 0 && venue !== null) ||
-    (step === 1 && selected.length > 0) ||
+    (step === 1 && (preBooked ? manualValid : selected.length > 0)) ||
     (step === 2 && spotsTotal >= 2) ||
     step === 3;
 
@@ -156,21 +184,28 @@ function HostGamePage() {
       // for a venue whose real booking slots are shorter — round the
       // selected minute-precise range out to whole hours.
       const sorted = [...selected].sort((a, b) => a.startMinutes - b.startMinutes);
+      const startHour = preBooked ? manualStart : Math.floor(sorted[0]!.startMinutes / 60);
+      const endHour = preBooked ? manualEnd : Math.ceil(sorted[sorted.length - 1]!.endMinutes / 60);
       const game = await hostGame({
         sport,
         venueId: venue.id,
         venueName: venue.name,
         area: venue.area,
         dateISO,
-        startHour: Math.floor(sorted[0]!.startMinutes / 60),
-        endHour: Math.ceil(sorted[sorted.length - 1]!.endMinutes / 60),
+        startHour,
+        endHour,
         spotsTotal,
         skillLevel,
         costMode,
         totalCost,
         description: description.trim(),
         joinPolicy,
+        venuePreBooked: preBooked,
       });
+      if (invited.length > 0) {
+        // The game is already live; a failed invite must not look like a failed publish.
+        await invitePlayers(game.id, invited.map((p) => p.userId)).catch(() => undefined);
+      }
       void navigate({ to: "/games/$gameId", params: { gameId: game.id }, search: { new: true } });
     } catch (e) {
       setPublishError(e instanceof Error ? e.message : "Could not publish this game. Try again.");
@@ -303,19 +338,105 @@ function HostGamePage() {
             </div>
 
             <div>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-2xl">Pick your slot</h2>
-                <SlotLegend />
+              <h2 className="text-2xl">Is {venue.name} already booked?</h2>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {(
+                  [
+                    { v: false, title: "No — book a slot now", copy: "Pick from the available slots." },
+                    { v: true, title: "Yes, I've already booked it", copy: "Just tell us the time you booked." },
+                  ] as const
+                ).map((o) => (
+                  <button
+                    key={String(o.v)}
+                    type="button"
+                    onClick={() => {
+                      setPreBooked(o.v);
+                      setSelected([]);
+                    }}
+                    className={cn(
+                      "surface-card rounded-2xl p-4 text-left transition-all",
+                      preBooked === o.v && "border-primary ring-1 ring-primary",
+                    )}
+                  >
+                    <p className="font-semibold">{o.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{o.copy}</p>
+                  </button>
+                ))}
               </div>
-              <SlotGrid
-                slots={slots}
-                selectedIds={selected.map((s) => s.id)}
-                onToggle={toggleSlot}
-              />
-              <p className="mt-3 text-xs text-muted-foreground">
-                Select one or more back-to-back hours at {venue.name}.
-              </p>
             </div>
+
+            {preBooked ? (
+              <div>
+                <h2 className="text-2xl">Your booked time</h2>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <label className="text-sm font-semibold">
+                    Start
+                    <select
+                      value={manualStart}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setManualStart(v);
+                        if (manualEnd <= v) setManualEnd(Math.min(v + 1, 24));
+                      }}
+                      className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    >
+                      {Array.from({ length: 24 }, (_, h) => h)
+                        .filter((h) => !isToday || h > nowHour)
+                        .map((h) => (
+                          <option key={h} value={h}>
+                            {formatHour(h)}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label className="text-sm font-semibold">
+                    End
+                    <select
+                      value={manualEnd}
+                      onChange={(e) => setManualEnd(Number(e.target.value))}
+                      className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    >
+                      {Array.from({ length: 24 }, (_, i) => i + 1)
+                        .filter((h) => h > manualStart)
+                        .map((h) => (
+                          <option key={h} value={h}>
+                            {h === 24 ? "12 AM" : formatHour(h)}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label className="text-sm font-semibold">
+                    Amount you paid (₹)
+                    <input
+                      value={manualCost}
+                      onChange={(e) => setManualCost(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      inputMode="numeric"
+                      placeholder="For splitting the cost"
+                      className="mt-1 w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                  </label>
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  We won't book or charge anything — players see "Venue already booked by host".
+                  {!manualValid ? " Pick a start time later than now and an end time after it." : ""}
+                </p>
+              </div>
+            ) : (
+              <div>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-2xl">Pick your slot</h2>
+                  <SlotLegend />
+                </div>
+                <SlotGrid
+                  slots={slots}
+                  selectedIds={selected.map((s) => s.id)}
+                  onToggle={toggleSlot}
+                />
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Select one or more back-to-back hours at {venue.name}.
+                </p>
+              </div>
+            )}
           </section>
         ) : null}
 
@@ -404,6 +525,13 @@ function HostGamePage() {
                 </div>
               </div>
 
+              <InvitePlayers
+                selected={invited}
+                onChange={setInvited}
+                maxInvites={Math.max(spotsTotal - 1, 0)}
+                inviteText={`Join my ${sport} game at ${venue?.name ?? "a venue"} on ${formatDateLong(dateISO)}, ${timeLabelText}. Download JustPlay: ${typeof window !== "undefined" ? window.location.origin : ""}`}
+              />
+
               <div>
                 <h2 className="text-2xl">Description (optional)</h2>
                 <textarea
@@ -424,14 +552,9 @@ function HostGamePage() {
                 <Row label="Date" value={formatDateLong(dateISO)} />
                 <Row
                   label="Time"
-                  value={
-                    selected.length
-                      ? `${formatSlotTime(Math.min(...selected.map((s) => s.startMinutes)))} – ${formatSlotTime(
-                          Math.max(...selected.map((s) => s.endMinutes)),
-                        )}`
-                      : "—"
-                  }
+                  value={timeLabelText}
                 />
+                {preBooked ? <Row label="Venue" value="Already booked" /> : null}
                 <Row label="Slot cost" value={formatINR(totalCost)} />
                 <Row
                   label="Per head"
@@ -453,10 +576,10 @@ function HostGamePage() {
               <dl className="mt-5 space-y-2 text-sm">
                 <Row
                   label="Time"
-                  value={`${formatSlotTime(Math.min(...selected.map((s) => s.startMinutes)))} – ${formatSlotTime(
-                    Math.max(...selected.map((s) => s.endMinutes)),
-                  )}`}
+                  value={timeLabelText}
                 />
+                {preBooked ? <Row label="Venue" value="Already booked by you" /> : null}
+                {invited.length ? <Row label="Invited" value={`${invited.length} player${invited.length > 1 ? "s" : ""}`} /> : null}
                 <Row label="Spots" value={`${spotsTotal} players`} />
                 <Row label="Skill" value={skillLevel === "Any" ? "All levels" : skillLevel} />
                 <Row

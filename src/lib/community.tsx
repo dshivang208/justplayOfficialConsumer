@@ -109,6 +109,8 @@ export type HostGameInput = {
   totalCost: number;
   description: string;
   joinPolicy: Game["joinPolicy"];
+  /** Host already booked the venue elsewhere; only date/time are recorded. */
+  venuePreBooked?: boolean;
 };
 
 export type UpdateGameInput = Partial<{
@@ -282,6 +284,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
         description: row.description ?? "",
         joinPolicy: row.join_policy,
         groupId: row.group_id ?? undefined,
+        venuePreBooked: Boolean(row.venue_pre_booked),
         status:
           row.status === "active" && hasGameEnded(row.date, startHour, endHour)
             ? "completed"
@@ -492,6 +495,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
         p_total_cost: input.totalCost,
         p_description: input.description,
         p_join_policy: input.joinPolicy,
+        p_venue_pre_booked: Boolean(input.venuePreBooked),
       });
       if (error) throw new Error(error.message);
 
@@ -517,6 +521,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
         totalCost: input.totalCost,
         description: input.description,
         joinPolicy: input.joinPolicy,
+        venuePreBooked: Boolean(input.venuePreBooked),
         status: "active",
         isMine: true,
       } as Game;

@@ -170,6 +170,7 @@ function GameDetailPage() {
               label="Skill level"
               value={game.skillLevel === "Any" ? "All levels" : game.skillLevel}
             />
+            {game.venuePreBooked ? <InfoRow label="Venue" value="Already booked by host ✅" /> : null}
             <InfoRow
               label="Joining"
               value={game.joinPolicy === "open" ? "Open to all" : "Approval needed"}
