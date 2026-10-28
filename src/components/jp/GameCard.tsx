@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Clock, MapPin, Users } from "lucide-react";
 import type { Game } from "@/data/community";
 import { perHead } from "@/data/community";
@@ -27,6 +27,24 @@ export function GameCard({
   onManage?: () => void;
   className?: string;
 }) {
+  const navigate = useNavigate();
+  const openDetails = () => void navigate({ to: "/games/$gameId", params: { gameId: game.id } });
+  // Whole card opens the game; real buttons/links inside keep doing their own thing.
+  const cardProps = {
+    role: "link" as const,
+    tabIndex: 0,
+    "aria-label": `View details: ${game.sport} at ${game.venueName}`,
+    onClick: (e: React.MouseEvent<HTMLElement>) => {
+      if ((e.target as HTMLElement).closest("a, button")) return;
+      openDetails();
+    },
+    onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
+      if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        openDetails();
+      }
+    },
+  };
   const filled = game.players.length;
   const spotsLeft = game.spotsTotal - filled;
   const pct = Math.min(100, Math.round((filled / game.spotsTotal) * 100));
@@ -83,8 +101,9 @@ export function GameCard({
   if (view === "list") {
     return (
       <article
+        {...cardProps}
         className={cn(
-          "surface-card flex items-center gap-3 rounded-xl p-3 transition-colors hover:border-primary/60 sm:gap-5 sm:rounded-2xl sm:p-4",
+          "surface-card flex cursor-pointer items-center gap-3 rounded-xl p-3 transition-colors hover:border-primary/60 sm:gap-5 sm:rounded-2xl sm:p-4",
           (cancelled || past) && "opacity-60",
           className,
         )}
@@ -152,8 +171,9 @@ export function GameCard({
 
   return (
     <article
+      {...cardProps}
       className={cn(
-        "surface-card flex flex-col gap-3 rounded-2xl p-4 transition-all hover:-translate-y-1 hover:border-primary/60",
+        "surface-card flex cursor-pointer flex-col gap-3 rounded-2xl p-4 transition-all hover:-translate-y-1 hover:border-primary/60",
         (cancelled || past) && "opacity-60",
         className,
       )}

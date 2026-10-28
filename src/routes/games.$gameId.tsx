@@ -166,6 +166,7 @@ function GameDetailPage() {
               label="Date"
               value={formatDateLong(game.dateISO)}
             />
+            <InfoRow label="Hosted by" value={game.isMine ? "You" : game.hostName} />
             <InfoRow
               label="Skill level"
               value={game.skillLevel === "Any" ? "All levels" : game.skillLevel}
@@ -214,7 +215,8 @@ function GameDetailPage() {
             </div>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
+          <h2 className="mt-6 text-lg">Players ({game.players.length})</h2>
+          <div className="mt-2 flex flex-wrap gap-2">
             {game.players.map((p) => (
               <div
                 key={p.id}
