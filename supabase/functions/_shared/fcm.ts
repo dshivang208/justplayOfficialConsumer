@@ -91,7 +91,7 @@ export async function getAccessToken(): Promise<{ token: string; projectId: stri
   return { token: body.access_token, projectId: sa.project_id };
 }
 
-export type PushPayload = { title: string; body: string; url?: string; tag?: string };
+export type PushPayload = { title: string; body: string; url?: string; tag?: string; image?: string };
 export type SendResult = { ok: true } | { ok: false; unregistered: boolean; error: string };
 
 /**
@@ -111,7 +111,7 @@ export async function sendToToken(
       body: JSON.stringify({
         message: {
           token: fcmToken,
-          data: { title: p.title, body: p.body, url: p.url ?? "/", tag: p.tag ?? "" },
+          data: { title: p.title, body: p.body, url: p.url ?? "/", tag: p.tag ?? "", ...(p.image ? { image: p.image } : {}) },
           webpush: { headers: { Urgency: "high", TTL: "86400" } },
         },
       }),

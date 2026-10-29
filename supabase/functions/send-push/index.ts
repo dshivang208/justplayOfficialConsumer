@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
   if (!SECRET) return json({ error: "PUSH_WEBHOOK_SECRET is not configured" }, 500);
   if (!safeEqual(req.headers.get("x-push-secret") ?? "", SECRET)) return json({ error: "Forbidden" }, 403);
 
-  let body: { user_ids?: unknown; app?: unknown; title?: unknown; body?: unknown; url?: unknown; tag?: unknown };
+  let body: { user_ids?: unknown; app?: unknown; title?: unknown; body?: unknown; url?: unknown; tag?: unknown; image?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -50,6 +50,8 @@ Deno.serve(async (req) => {
   const text = typeof body.body === "string" ? body.body : "";
   const url = typeof body.url === "string" && body.url.startsWith("/") ? body.url : "/";
   const tag = typeof body.tag === "string" ? body.tag : undefined;
+  // Optional big picture (https only — the browser/OS downloads it itself).
+  const image = typeof body.image === "string" && /^https:\/\/\S+$/.test(body.image) && body.image.length <= 1000 ? body.image : undefined;
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -82,7 +84,7 @@ Deno.serve(async (req) => {
 
   for (let i = 0; i < tokens.length; i += CONCURRENCY) {
     const batch = tokens.slice(i, i + CONCURRENCY);
-    const results = await Promise.all(batch.map((t) => sendToToken(auth, t.token, { title, body: text, url, ...(tag ? { tag } : {}) })));
+    const results = await Promise.all(batch.map((t) => sendToToken(auth, t.token, { title, body: text, url, ...(tag ? { tag } : {}), ...(image ? { image } : {}) })));
     results.forEach((r, idx) => {
       if (r.ok) sent++;
       else {
