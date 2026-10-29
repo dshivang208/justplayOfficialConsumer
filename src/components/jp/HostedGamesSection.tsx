@@ -17,8 +17,10 @@ export function HostedGamesSection() {
     games,
     joinedGameIds,
     requestedGameIds,
+    waitlistedGameIds,
     joinGame,
     requestJoin,
+    joinWaitlist,
     cancelGame,
     loading,
     hydrated,
@@ -35,12 +37,17 @@ export function HostedGamesSection() {
   const isLoading = loading && !hydrated;
 
   const handleJoin = async (gameId: string, approvalNeeded: boolean) => {
+    const target = games.find((g) => g.id === gameId);
+    const isFull = !!target && target.players.length >= target.spotsTotal && !approvalNeeded;
     if (!isAuthenticated) {
       void navigate({ to: "/auth", search: { redirect: "/" } });
       return;
     }
     try {
-      if (approvalNeeded) {
+      if (isFull) {
+        const pos = await joinWaitlist(gameId);
+        toast.success(`You're #${pos} on the waiting list — we'll notify you if a spot opens.`);
+      } else if (approvalNeeded) {
         await requestJoin(gameId);
         toast.success("Request sent to the host");
       } else {
@@ -88,6 +95,7 @@ export function HostedGamesSection() {
               game={g}
               joined={joinedGameIds.includes(g.id)}
               requested={requestedGameIds.includes(g.id)}
+              waitlisted={waitlistedGameIds.includes(g.id)}
               onJoin={() => handleJoin(g.id, g.joinPolicy === "approval")}
               onManage={() => setManageGameId(g.id)}
             />

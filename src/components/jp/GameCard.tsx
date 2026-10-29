@@ -11,6 +11,7 @@ export function GameCard({
   game,
   joined,
   requested,
+  waitlisted,
   onJoin,
   onManage,
   className,
@@ -20,6 +21,8 @@ export function GameCard({
   game: Game;
   joined?: boolean;
   requested?: boolean;
+  waitlisted?: boolean;
+  /** Also used for "Join Waitlist" when a joinable game is full. */
   onJoin?: () => void;
   /** When provided, "Manage" opens the management view immediately (e.g.
    *  a modal right here) instead of navigating to the game's own detail
@@ -73,6 +76,16 @@ export function GameCard({
   ) : requested ? (
     <Button size="sm" variant="surface" disabled>
       Requested
+    </Button>
+  ) : waitlisted ? (
+    <Button asChild size="sm" variant="surface">
+      <Link to="/games/$gameId" params={{ gameId: game.id }}>
+        On waitlist
+      </Link>
+    </Button>
+  ) : spotsLeft <= 0 && game.joinPolicy === "open" && !cancelled && !past ? (
+    <Button size="sm" variant="outline" onClick={onJoin}>
+      Join Waitlist
     </Button>
   ) : (
     <Button size="sm" disabled={spotsLeft === 0 || cancelled || past} onClick={onJoin}>

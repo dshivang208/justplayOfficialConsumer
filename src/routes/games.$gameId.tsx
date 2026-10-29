@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarX2, Check, Clock, MapPin, Settings, Users } from "lucide-react";
+import { ArrowLeft, CalendarX2, Check, Clock, MapPin, Send, Settings, Trash2, Users } from "lucide-react";
 import { PageShell } from "@/components/jp/PageShell";
 import { ManageGameModal } from "@/components/jp/ManageGameModal";
 import { Button } from "@/components/jp/Button";
 import { SportTag } from "@/components/jp/SportTag";
-import { perHead, type GameMessage } from "@/data/community";
+import { perHead, type GameMessage, type GameQuestion } from "@/data/community";
+import { fetchVenue } from "@/data/venues";
 import { daysUntil, gameTimeLabel, relativeDayLabel } from "@/lib/games";
 import { formatDateLong, formatINR } from "@/lib/booking";
 import { useCommunity } from "@/lib/community";
@@ -44,11 +45,13 @@ function GameDetailPage() {
   const { gameId } = Route.useParams();
   const { new: justPublished } = Route.useSearch();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const {
     getGame,
     joinedGameIds,
     requestedGameIds,
+    waitlistedGameIds,
+    joinWaitlist,
     joinGame,
     leaveGame,
     requestJoin,
@@ -60,6 +63,21 @@ function GameDetailPage() {
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const game = getGame(gameId);
+
+  // Venue write-up (about / address) for the "Venue" block.
+  const venueId = game?.venueId;
+  const [venueInfo, setVenueInfo] = useState<{ about: string; tagline: string; address: string } | null>(null);
+  useEffect(() => {
+    if (!venueId) return;
+    let active = true;
+    void fetchVenue(venueId).then((v) => {
+      if (active) setVenueInfo(v ? { about: v.about, tagline: v.tagline, address: v.address } : null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [venueId]);
+
   if (!game) {
     if (loading) {
       return (
@@ -75,6 +93,8 @@ function GameDetailPage() {
 
   const joined = joinedGameIds.includes(game.id);
   const requested = requestedGameIds.includes(game.id);
+  const waitlisted = waitlistedGameIds.includes(game.id);
+  const waitPos = game.waitlist.findIndex((p) => p.id === user?.id) + 1;
   const spotsLeft = game.spotsTotal - game.players.length;
   const pct = Math.min(100, Math.round((game.players.length / game.spotsTotal) * 100));
   const price = perHead(game);
@@ -100,10 +120,23 @@ function GameDetailPage() {
     }
   };
 
+  const handleWaitlist = async () => {
+    if (!isAuthenticated) {
+      void navigate({ to: "/auth", search: { redirect: `/games/${game.id}` } });
+      return;
+    }
+    try {
+      const pos = await joinWaitlist(game.id);
+      toast.success(`You're #${pos} on the waiting list — we'll notify you if a spot opens.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't join the waiting list. Try again.");
+    }
+  };
+
   const handleLeave = async () => {
     try {
       await leaveGame(game.id);
-      toast.success("You've left the game");
+      toast.success(waitlisted ? "You've left the waiting list" : "You've left the game");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't leave this game. Try again.");
     }
@@ -166,12 +199,17 @@ function GameDetailPage() {
               label="Date"
               value={formatDateLong(game.dateISO)}
             />
+            <InfoRow
+              icon={<MapPin className="h-4 w-4" />}
+              label="Venue"
+              value={`${game.venueName}${game.area ? `, ${game.area}` : ""}`}
+            />
             <InfoRow label="Hosted by" value={game.isMine ? "You" : game.hostName} />
             <InfoRow
               label="Skill level"
               value={game.skillLevel === "Any" ? "All levels" : game.skillLevel}
             />
-            {game.venuePreBooked ? <InfoRow label="Venue" value="Already booked by host ✅" /> : null}
+            {game.venuePreBooked ? <InfoRow label="Booking" value="Venue already booked by host ✅" /> : null}
             <InfoRow
               label="Joining"
               value={game.joinPolicy === "open" ? "Open to all" : "Approval needed"}
@@ -194,11 +232,26 @@ function GameDetailPage() {
             />
           </div>
 
-          {game.description ? (
-            <p className="mt-5 rounded-xl bg-secondary p-3.5 text-sm text-muted-foreground">
-              {game.description}
-            </p>
-          ) : null}
+          <div className="mt-5 space-y-3">
+            <div className="rounded-xl bg-secondary p-3.5">
+              <p className="text-xs font-bold uppercase tracking-wide text-foreground">About this game</p>
+              <p className="mt-1.5 whitespace-pre-line text-sm text-muted-foreground">
+                {game.description || "The host hasn't added a description yet — ask them below."}
+              </p>
+            </div>
+            {venueInfo && (venueInfo.about || venueInfo.tagline || venueInfo.address) ? (
+              <div className="rounded-xl border border-border p-3.5">
+                <p className="text-xs font-bold uppercase tracking-wide text-foreground">About {game.venueName}</p>
+                {venueInfo.tagline ? <p className="mt-1.5 text-sm font-semibold text-foreground">{venueInfo.tagline}</p> : null}
+                {venueInfo.about ? <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{venueInfo.about}</p> : null}
+                {venueInfo.address ? (
+                  <p className="mt-2 inline-flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {venueInfo.address}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
 
           <div className="mt-6">
             <div className="mb-2 flex items-center justify-between text-sm">
@@ -207,7 +260,7 @@ function GameDetailPage() {
                 {game.players.length}/{game.spotsTotal} joined
               </span>
               <span className={spotsLeft <= 2 ? "font-bold text-accent" : "text-muted-foreground"}>
-                {spotsLeft > 0 ? `${spotsLeft} spots left` : "Full"}
+                {spotsLeft > 0 ? `${spotsLeft} spots left` : game.waitlist.length > 0 ? `Full · ${game.waitlist.length} waiting` : "Full"}
               </span>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -232,7 +285,27 @@ function GameDetailPage() {
             ))}
           </div>
 
+          {game.isMine && game.waitlist.length > 0 ? (
+            <div className="mt-5 rounded-xl border border-border p-3.5">
+              <p className="text-xs font-bold uppercase tracking-wide text-foreground">
+                Waiting list ({game.waitlist.length})
+              </p>
+              <ol className="mt-2 space-y-1 text-sm">
+                {game.waitlist.map((p, i) => (
+                  <li key={p.id} className="text-muted-foreground">
+                    <span className="font-semibold text-foreground">{i + 1}.</span> {p.name}
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-2 text-xs text-muted-foreground">
+                The first person in line joins automatically when a spot opens or you add spots.
+              </p>
+            </div>
+          ) : null}
+
           {joined && !game.isMine ? <HostMessages gameId={game.id} /> : null}
+
+          {!cancelled ? <GameQuestions gameId={game.id} hostId={game.hostId} /> : null}
 
           <div className="mt-6 border-t border-border pt-5">
             {game.isMine && past && !cancelled ? (
@@ -287,6 +360,20 @@ function GameDetailPage() {
             ) : requested ? (
               <Button className="w-full" variant="surface" disabled>
                 Request sent — waiting on host approval
+              </Button>
+            ) : waitlisted ? (
+              <div className="space-y-2">
+                <p className="text-center text-sm font-semibold text-foreground">
+                  You're #{waitPos || 1} on the waiting list
+                </p>
+                <Button variant="outline" className="w-full" onClick={handleLeave}>
+                  Leave waiting list
+                </Button>
+              </div>
+            ) : spotsLeft <= 0 && game.joinPolicy === "open" && !past ? (
+              <Button className="w-full" size="lg" variant="outline" onClick={handleWaitlist}>
+                Game full — join waiting list
+                {game.waitlist.length > 0 ? ` (${game.waitlist.length} waiting)` : ""}
               </Button>
             ) : (
               <Button
@@ -405,6 +492,108 @@ function HostMessages({ gameId }: { gameId: string }) {
             <span className="text-muted-foreground">{m.message}</span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function GameQuestions({ gameId, hostId }: { gameId: string; hostId: string }) {
+  const { fetchGameQuestions, postGameQuestion, deleteGameQuestion } = useCommunity();
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+  const [items, setItems] = useState<GameQuestion[]>([]);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const load = () =>
+      fetchGameQuestions(gameId)
+        .then((q) => active && setItems(q))
+        .catch(() => undefined);
+    void load();
+    const channel = supabase
+      .channel(`game-questions-${gameId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "game_questions", filter: `game_id=eq.${gameId}` }, () => void load())
+      .subscribe();
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [gameId, fetchGameQuestions]);
+
+  const send = async () => {
+    const msg = text.trim();
+    if (!msg) return;
+    if (!isAuthenticated) {
+      void navigate({ to: "/auth", search: { redirect: `/games/${gameId}` } });
+      return;
+    }
+    setBusy(true);
+    try {
+      await postGameQuestion(gameId, msg);
+      setText("");
+      setItems(await fetchGameQuestions(gameId));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't send your message.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-6 rounded-xl border border-border p-3.5">
+      <p className="text-xs font-bold uppercase tracking-wide text-foreground">Questions &amp; chat</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">Ask the host or other players anything about this game.</p>
+
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">No messages yet — be the first to ask.</p>
+      ) : (
+        <ul className="mt-3 max-h-72 space-y-2.5 overflow-y-auto pr-1">
+          {items.map((m) => {
+            const mine = m.senderId === user?.id;
+            return (
+              <li key={m.id} className={`flex gap-2 ${mine ? "justify-end" : ""}`}>
+                <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary/10" : "bg-secondary"}`}>
+                  <p className="text-[11px] font-bold text-foreground">
+                    {mine ? "You" : m.senderName}
+                    {m.senderId === hostId ? <span className="ml-1 rounded bg-primary/15 px-1 text-primary">Host</span> : null}
+                  </p>
+                  <p className="mt-0.5 whitespace-pre-line break-words text-muted-foreground">{m.message}</p>
+                </div>
+                {mine || user?.id === hostId ? (
+                  <button
+                    type="button"
+                    aria-label="Delete message"
+                    onClick={() => void deleteGameQuestion(m.id).then(() => setItems((p) => p.filter((x) => x.id !== m.id))).catch(() => undefined)}
+                    className="self-center text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <div className="mt-3 flex items-end gap-2">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value.slice(0, 500))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void send();
+            }
+          }}
+          rows={1}
+          placeholder={isAuthenticated ? "Ask a question…" : "Log in to ask a question"}
+          className="min-h-10 flex-1 resize-none rounded-2xl border border-border bg-surface px-3.5 py-2 text-sm outline-none focus:border-primary"
+        />
+        <Button size="sm" onClick={() => void send()} disabled={busy || text.trim().length === 0} aria-label="Send">
+          <Send className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

@@ -24,6 +24,7 @@ import {
   type CommunityEventDetail,
   type Game,
   type GameMessage,
+  type GameQuestion,
   type Group,
   type GroupMessage,
   type Player,
@@ -55,6 +56,7 @@ type CommunityContextValue = {
   events: CommunityEventDetail[];
   joinedGameIds: string[];
   requestedGameIds: string[];
+  waitlistedGameIds: string[];
   joinedGroupIds: string[];
   registeredEventIds: string[];
   hydrated: boolean;
@@ -67,6 +69,11 @@ type CommunityContextValue = {
   joinGame: (id: string) => Promise<void>;
   leaveGame: (id: string) => Promise<void>;
   requestJoin: (id: string) => Promise<void>;
+  /** Full open game: queue up. Resolves to your place in line (1 = next). */
+  joinWaitlist: (id: string) => Promise<number>;
+  fetchGameQuestions: (gameId: string) => Promise<GameQuestion[]>;
+  postGameQuestion: (gameId: string, message: string) => Promise<void>;
+  deleteGameQuestion: (id: string) => Promise<void>;
   approveRequest: (gameId: string, userId: string) => Promise<void>;
   rejectRequest: (gameId: string, userId: string) => Promise<void>;
   removeParticipant: (gameId: string, userId: string) => Promise<void>;
@@ -165,6 +172,18 @@ export function hasGameEnded(dateISO: string, startHour: number, endHour: number
   return now >= endMs;
 }
 
+function friendlyGameError(msg: string): string {
+  if (msg.includes("GAME_NOT_FULL")) return "This game has open spots — just join it.";
+  if (msg.includes("ALREADY_IN_GAME")) return "You're already in this game.";
+  if (msg.includes("WAITLIST_FULL")) return "The waiting list for this game is full.";
+  if (msg.includes("WAITLIST_NOT_AVAILABLE")) return "This game needs host approval, so there's no waiting list.";
+  if (msg.includes("GAME_ALREADY_HAPPENED")) return "This game has already happened.";
+  if (msg.includes("GAME_NOT_ACTIVE")) return "This game is no longer active.";
+  if (msg.includes("TOO_MANY_MESSAGES")) return "You're sending messages too fast — try again in a bit.";
+  if (msg.includes("AUTH_REQUIRED")) return "Please log in first.";
+  return msg;
+}
+
 type ProfileMap = Record<string, { name: string; initials: string; photoUrl: string | null }>;
 
 async function fetchProfiles(ids: string[]): Promise<ProfileMap> {
@@ -200,6 +219,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<CommunityEventDetail[]>([]);
   const [joinedGameIds, setJoinedGameIds] = useState<string[]>([]);
   const [requestedGameIds, setRequestedGameIds] = useState<string[]>([]);
+  const [waitlistedGameIds, setWaitlistedGameIds] = useState<string[]>([]);
   const [joinedGroupIds, setJoinedGroupIds] = useState<string[]>([]);
   const [registeredEventIds, setRegisteredEventIds] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -234,6 +254,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
 
     const mine: string[] = [];
     const requested: string[] = [];
+    const waitlisted: string[] = [];
 
     const mapped: Game[] = (rows ?? []).map((row: any) => {
       const { startHour, endHour } = parseHourRange(row.time);
@@ -255,12 +276,23 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
           joinedAt: p.joined_at,
         }));
 
+      const waitlist = (participantRows ?? [])
+        .filter((p) => p.game_id === row.id && p.status === "waitlisted")
+        .sort((a, b) => String(a.joined_at).localeCompare(String(b.joined_at)))
+        .map((p): Player => ({
+          id: p.user_id,
+          name: profiles[p.user_id]?.name ?? "Player",
+          initials: profiles[p.user_id]?.initials ?? "PL",
+          joinedAt: p.joined_at,
+        }));
+
       if (user) {
         const mineRow = (participantRows ?? []).find(
           (p) => p.game_id === row.id && p.user_id === user.id,
         );
         if (mineRow?.status === "joined") mine.push(row.id);
         if (mineRow?.status === "requested") requested.push(row.id);
+        if (mineRow?.status === "waitlisted") waitlisted.push(row.id);
       }
 
       return {
@@ -278,6 +310,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
         spotsTotal: row.total_spots,
         players: joinedPlayers,
         pendingRequests,
+        waitlist,
         skillLevel: row.skill_level as SkillLevel,
         costMode: row.cost_type,
         totalCost: row.total_cost ?? 0,
@@ -296,6 +329,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     setGames(mapped);
     setJoinedGameIds(mine);
     setRequestedGameIds(requested);
+    setWaitlistedGameIds(waitlisted);
   }, [user]);
 
   const loadGroups = useCallback(async () => {
@@ -516,6 +550,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
         spotsTotal: input.spotsTotal,
         players: [{ id: user!.id, name: user!.name, initials: initialsOf(user!.name || "Host") }],
         pendingRequests: [],
+        waitlist: [],
         skillLevel: input.skillLevel,
         costMode: input.costMode,
         totalCost: input.totalCost,
@@ -656,6 +691,45 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
     },
     [user],
   );
+
+  const joinWaitlist = useCallback(
+    async (id: string): Promise<number> => {
+      const { data, error } = await supabase.rpc("join_game_waitlist", { p_game_id: id });
+      if (error) throw new Error(friendlyGameError(error.message));
+      await loadGames();
+      return (data as number) ?? 1;
+    },
+    [loadGames],
+  );
+
+  const fetchGameQuestions = useCallback(async (gameId: string): Promise<GameQuestion[]> => {
+    const { data, error } = await supabase
+      .from("game_questions")
+      .select("id, game_id, sender_id, message, created_at")
+      .eq("game_id", gameId)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    const profiles = await fetchProfiles((data ?? []).map((r) => r.sender_id));
+    return (data ?? []).map((r) => ({
+      id: r.id,
+      gameId: r.game_id,
+      senderId: r.sender_id,
+      senderName: profiles[r.sender_id]?.name ?? "Player",
+      message: r.message,
+      createdAt: r.created_at,
+    }));
+  }, []);
+
+  const postGameQuestion = useCallback(async (gameId: string, message: string) => {
+    const { error } = await supabase.rpc("post_game_question", { p_game_id: gameId, p_message: message });
+    if (error) throw new Error(friendlyGameError(error.message));
+  }, []);
+
+  const deleteGameQuestion = useCallback(async (id: string) => {
+    const { error } = await supabase.rpc("delete_game_question", { p_id: id });
+    if (error) throw new Error(error.message);
+  }, []);
 
   const joinGroup = useCallback(
     async (id: string): Promise<"joined" | "pending"> => {
@@ -822,6 +896,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       events,
       joinedGameIds,
       requestedGameIds,
+      waitlistedGameIds,
       joinedGroupIds,
       registeredEventIds,
       hydrated,
@@ -834,6 +909,10 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       joinGame,
       leaveGame,
       requestJoin,
+      joinWaitlist,
+      fetchGameQuestions,
+      postGameQuestion,
+      deleteGameQuestion,
       approveRequest,
       rejectRequest,
       removeParticipant,
@@ -863,6 +942,7 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       events,
       joinedGameIds,
       requestedGameIds,
+      waitlistedGameIds,
       joinedGroupIds,
       registeredEventIds,
       hydrated,
@@ -872,6 +952,10 @@ export function CommunityProvider({ children }: { children: ReactNode }) {
       joinGame,
       leaveGame,
       requestJoin,
+      joinWaitlist,
+      fetchGameQuestions,
+      postGameQuestion,
+      deleteGameQuestion,
       approveRequest,
       rejectRequest,
       removeParticipant,

@@ -43,7 +43,7 @@ function GamesPage() {
   const { tab: initialTab } = Route.useSearch();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { games, joinedGameIds, requestedGameIds, joinGame, requestJoin, cancelGame, myGames } =
+  const { games, joinedGameIds, requestedGameIds, joinGame, requestJoin, joinWaitlist, waitlistedGameIds, cancelGame, myGames } =
     useCommunity();
 
   const [manageGameId, setManageGameId] = useState<string | null>(null);
@@ -79,12 +79,17 @@ function GamesPage() {
   }, [tab, active, myGames, joinedGameIds, sport, skillLevel, dateFilter]);
 
   const handleJoin = async (gameId: string, approvalNeeded: boolean) => {
+    const target = games.find((g) => g.id === gameId);
+    const isFull = !!target && target.players.length >= target.spotsTotal && !approvalNeeded;
     if (!isAuthenticated) {
       void navigate({ to: "/auth", search: { redirect: "/games" } });
       return;
     }
     try {
-      if (approvalNeeded) {
+      if (isFull) {
+        const pos = await joinWaitlist(gameId);
+        toast.success(`You're #${pos} on the waiting list — we'll notify you if a spot opens.`);
+      } else if (approvalNeeded) {
         await requestJoin(gameId);
         toast.success("Request sent to the host");
       } else {
@@ -236,6 +241,7 @@ function GamesPage() {
                   game={g}
                   joined={joinedGameIds.includes(g.id)}
                   requested={requestedGameIds.includes(g.id)}
+                  waitlisted={waitlistedGameIds.includes(g.id)}
                   onJoin={() => handleJoin(g.id, g.joinPolicy === "approval")}
                   onManage={() => setManageGameId(g.id)}
                 />

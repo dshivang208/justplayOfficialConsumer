@@ -48,8 +48,10 @@ function GroupDetailPage() {
     gamesForGroup,
     joinedGameIds,
     requestedGameIds,
+    waitlistedGameIds,
     joinGame,
     requestJoin,
+    joinWaitlist,
     loading,
   } = useCommunity();
 
@@ -129,8 +131,13 @@ function GroupDetailPage() {
       void navigate({ to: "/auth", search: { redirect: `/groups/${group.id}` } });
       return;
     }
+    const target = games.find((x) => x.id === gameId);
+    const isFull = !!target && target.players.length >= target.spotsTotal && !approvalNeeded;
     try {
-      if (approvalNeeded) {
+      if (isFull) {
+        const pos = await joinWaitlist(gameId);
+        toast.success(`You're #${pos} on the waiting list — we'll notify you if a spot opens.`);
+      } else if (approvalNeeded) {
         await requestJoin(gameId);
         toast.success("Request sent to the host");
       } else {
@@ -295,6 +302,7 @@ function GroupDetailPage() {
                     game={g}
                     joined={joinedGameIds.includes(g.id)}
                     requested={requestedGameIds.includes(g.id)}
+                    waitlisted={waitlistedGameIds.includes(g.id)}
                     onJoin={() => handleJoinGame(g.id, g.joinPolicy === "approval")}
                   />
                 ))}

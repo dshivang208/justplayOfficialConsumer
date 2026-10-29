@@ -34,6 +34,8 @@ export type Game = {
    *  for the host (RLS only returns other users' requested rows to the
    *  host of that game; see game_participants select policy). */
   pendingRequests: Player[];
+  /** Players waiting for a spot (open games only), first in line first. */
+  waitlist: Player[];
   skillLevel: SkillLevel;
   costMode: "free" | "split";
   /** Total venue cost, split across spotsTotal when costMode === "split". */
@@ -47,6 +49,15 @@ export type Game = {
    *  from the date + end hour in IST, and also stored by the server). */
   status: "active" | "cancelled" | "completed";
   isMine?: boolean;
+};
+
+export type GameQuestion = {
+  id: string;
+  gameId: string;
+  senderId: string;
+  senderName: string;
+  message: string;
+  createdAt: string;
 };
 
 export type GameMessage = {
