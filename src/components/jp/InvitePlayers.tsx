@@ -24,6 +24,8 @@ type Props = {
   onChange: (next: InvitedPlayer[]) => void;
   /** Max players the host can still add (spots minus the host). */
   maxInvites: number;
+  /** Already invited / already in the game — shown as "Invited" and not selectable. */
+  disabledIds?: string[];
   /** Text used for the WhatsApp invite to people who aren't on JustPlay yet. */
   inviteText: string;
 };
@@ -36,7 +38,7 @@ const initials = (n: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-export function InvitePlayers({ selected, onChange, maxInvites, inviteText }: Props) {
+export function InvitePlayers({ selected, onChange, maxInvites, inviteText, disabledIds = [] }: Props) {
   const [tab, setTab] = useState<"friends" | "contacts">("friends");
   const [friends, setFriends] = useState<Friend[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
@@ -63,7 +65,9 @@ export function InvitePlayers({ selected, onChange, maxInvites, inviteText }: Pr
 
   const isSelected = (id: string) => selected.some((s) => s.userId === id);
   const full = selected.length >= maxInvites;
+  const isDisabled = (id: string) => disabledIds.includes(id);
   const toggle = (p: InvitedPlayer) => {
+    if (isDisabled(p.userId)) return;
     if (isSelected(p.userId)) onChange(selected.filter((s) => s.userId !== p.userId));
     else if (!full) onChange([...selected, p]);
     else setNote(`You can invite up to ${maxInvites} players for ${maxInvites + 1} spots.`);
@@ -217,8 +221,8 @@ export function InvitePlayers({ selected, onChange, maxInvites, inviteText }: Pr
                 <PersonRow
                   key={f.userId}
                   name={f.name}
-                  sub={f.phone ? `•••• ${phone10(f.phone).slice(-4)}` : "Friend"}
-                  active={isSelected(f.userId)}
+                  sub={isDisabled(f.userId) ? "Invited / in game" : f.phone ? `•••• ${phone10(f.phone).slice(-4)}` : "Friend"}
+                  active={isSelected(f.userId) || isDisabled(f.userId)}
                   onClick={() => toggle({ userId: f.userId, name: f.name })}
                 />
               ))}
@@ -275,8 +279,8 @@ export function InvitePlayers({ selected, onChange, maxInvites, inviteText }: Pr
                   <PersonRow
                     key={c.phone10}
                     name={c.name}
-                    sub={c.isFriend ? "On JustPlay · Friend" : "On JustPlay"}
-                    active={isSelected(c.userId)}
+                    sub={isDisabled(c.userId) ? "Invited / in game" : c.isFriend ? "On JustPlay · Friend" : "On JustPlay"}
+                    active={isSelected(c.userId) || isDisabled(c.userId)}
                     onClick={() => toggle({ userId: c.userId!, name: c.appName || c.name })}
                   />
                 ) : (

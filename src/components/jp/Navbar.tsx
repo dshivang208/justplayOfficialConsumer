@@ -182,6 +182,13 @@ export function Navbar() {
                   My Bookings
                 </Link>
                 <Link
+                  to="/friends"
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                >
+                  My Friends
+                </Link>
+                <Link
                   to="/support"
                   onClick={() => setOpen(false)}
                   className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"

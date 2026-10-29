@@ -16,6 +16,7 @@ import { Route as BookingsRouteImport } from './routes/bookings'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CorporateProfileRouteImport } from './routes/corporate-profile'
 import { Route as EventsRouteImport } from './routes/events'
+import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as GameHistoryRouteImport } from './routes/game-history'
 import { Route as GamesRouteImport } from './routes/games'
 import { Route as GroupsRouteImport } from './routes/groups'
@@ -74,6 +75,11 @@ const CorporateProfileRoute = CorporateProfileRouteImport.update({
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
   path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FriendsRoute = FriendsRouteImport.update({
+  id: '/friends',
+  path: '/friends',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GameHistoryRoute = GameHistoryRouteImport.update({
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/corporate-profile': typeof CorporateProfileRoute
   '/events': typeof EventsRouteWithChildren
+  '/friends': typeof FriendsRoute
   '/game-history': typeof GameHistoryRoute
   '/games': typeof GamesRouteWithChildren
   '/groups': typeof GroupsRouteWithChildren
@@ -237,6 +244,7 @@ export interface FileRoutesByTo {
   '/bookings': typeof BookingsRoute
   '/contact': typeof ContactRoute
   '/corporate-profile': typeof CorporateProfileRoute
+  '/friends': typeof FriendsRoute
   '/game-history': typeof GameHistoryRoute
   '/host': typeof HostRoute
   '/invite': typeof InviteRoute
@@ -268,6 +276,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/corporate-profile': typeof CorporateProfileRoute
   '/events': typeof EventsRouteWithChildren
+  '/friends': typeof FriendsRoute
   '/game-history': typeof GameHistoryRoute
   '/games': typeof GamesRouteWithChildren
   '/groups': typeof GroupsRouteWithChildren
@@ -303,6 +312,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/corporate-profile'
     | '/events'
+    | '/friends'
     | '/game-history'
     | '/games'
     | '/groups'
@@ -335,6 +345,7 @@ export interface FileRouteTypes {
     | '/bookings'
     | '/contact'
     | '/corporate-profile'
+    | '/friends'
     | '/game-history'
     | '/host'
     | '/invite'
@@ -365,6 +376,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/corporate-profile'
     | '/events'
+    | '/friends'
     | '/game-history'
     | '/games'
     | '/groups'
@@ -399,6 +411,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   CorporateProfileRoute: typeof CorporateProfileRoute
   EventsRoute: typeof EventsRouteWithChildren
+  FriendsRoute: typeof FriendsRoute
   GameHistoryRoute: typeof GameHistoryRoute
   GamesRoute: typeof GamesRouteWithChildren
   GroupsRoute: typeof GroupsRouteWithChildren
@@ -465,6 +478,13 @@ declare module '@tanstack/react-router' {
       path: '/events'
       fullPath: '/events'
       preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/friends': {
+      id: '/friends'
+      path: '/friends'
+      fullPath: '/friends'
+      preLoaderRoute: typeof FriendsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/game-history': {
@@ -699,6 +719,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   CorporateProfileRoute: CorporateProfileRoute,
   EventsRoute: EventsRouteWithChildren,
+  FriendsRoute: FriendsRoute,
   GameHistoryRoute: GameHistoryRoute,
   GamesRoute: GamesRouteWithChildren,
   GroupsRoute: GroupsRouteWithChildren,

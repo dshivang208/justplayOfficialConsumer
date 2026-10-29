@@ -418,6 +418,16 @@ function ProfilePage() {
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </Link>
           <Link
+            to="/friends"
+            className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 hover:bg-secondary"
+          >
+            <div>
+              <p className="text-sm font-semibold">My Friends</p>
+              <p className="text-xs text-muted-foreground">Friends you can invite to games</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
+          <Link
             to="/games"
             search={{ tab: "mine" }}
             className="flex items-center justify-between gap-3 rounded-xl px-3 py-3 hover:bg-secondary"

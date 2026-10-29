@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarX2, Check, Clock, MapPin, Send, Settings, Trash2, Users } from "lucide-react";
+import { ArrowLeft, CalendarX2, Check, Clock, MapPin, Send, Settings, Trash2, UserPlus, Users } from "lucide-react";
 import { PageShell } from "@/components/jp/PageShell";
 import { ManageGameModal } from "@/components/jp/ManageGameModal";
+import { InviteMoreModal } from "@/components/jp/InviteMoreModal";
 import { Button } from "@/components/jp/Button";
 import { SportTag } from "@/components/jp/SportTag";
 import { perHead, type GameMessage, type GameQuestion } from "@/data/community";
@@ -60,6 +61,7 @@ function GameDetailPage() {
   } = useCommunity();
 
   const [manageOpen, setManageOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const game = getGame(gameId);
@@ -318,6 +320,11 @@ function GameDetailPage() {
               </p>
             ) : game.isMine ? (
               <div className="flex flex-col gap-2 sm:flex-row">
+                {!cancelled ? (
+                  <Button className="flex-1" onClick={() => setInviteOpen(true)}>
+                    <UserPlus className="h-4 w-4" /> Invite players
+                  </Button>
+                ) : null}
                 <Button
                   variant="outline"
                   className="flex-1"
@@ -392,6 +399,8 @@ function GameDetailPage() {
           </div>
         </div>
       </div>
+
+      {inviteOpen && game.isMine ? <InviteMoreModal game={game} onClose={() => setInviteOpen(false)} /> : null}
 
       {manageOpen ? (
         <ManageGameModal

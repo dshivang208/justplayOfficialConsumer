@@ -86,3 +86,15 @@ export async function invitePlayers(gameId: string, userIds: string[]): Promise<
   if (error) throw new Error(error.message);
   return (data as number) ?? 0;
 }
+
+export async function removeFriend(userId: string): Promise<void> {
+  const { error } = await supabase.rpc("remove_friend", { p_user_id: userId });
+  if (error) throw new Error(error.message);
+}
+
+/** Ids of everyone the host already invited to this game (RLS: host sees their own invites). */
+export async function fetchInvitedIds(gameId: string): Promise<string[]> {
+  const { data, error } = await supabase.from("game_invites").select("user_id").eq("game_id", gameId);
+  if (error) return [];
+  return (data ?? []).map((r) => r.user_id as string);
+}

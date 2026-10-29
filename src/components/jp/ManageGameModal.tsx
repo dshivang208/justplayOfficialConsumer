@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Check, Trash2, X } from "lucide-react";
+import { Check, Trash2, UserPlus, X } from "lucide-react";
 import type { Game, GameMessage, SkillLevel } from "@/data/community";
 import { skillLevels } from "@/data/community";
 import { fetchSlots, formatSlotTime, type Slot } from "@/data/venues";
@@ -8,6 +8,7 @@ import { formatDateLong } from "@/lib/booking";
 import { useCommunity } from "@/lib/community";
 import { Button } from "./Button";
 import { Chip } from "./PageShell";
+import { InviteMoreModal } from "./InviteMoreModal";
 
 /** Full host-management surface for a hosted game — opened from the
  *  "Manage" button (GameCard / game detail page). Everything here is a
@@ -36,6 +37,7 @@ export function ManageGameModal({
 
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   // ---- Edit details ----
   const todayISO = new Date().toISOString().slice(0, 10);
@@ -187,6 +189,11 @@ export function ManageGameModal({
         <p className="mt-1 text-xs text-muted-foreground">
           {game.venueName} · {formatDateLong(game.dateISO)}
         </p>
+
+        <Button className="mt-4 w-full" variant="outline" onClick={() => setInviteOpen(true)}>
+          <UserPlus className="h-4 w-4" /> Invite players (friends &amp; contacts)
+        </Button>
+        {inviteOpen ? <InviteMoreModal game={game} onClose={() => setInviteOpen(false)} /> : null}
 
         {/* Pending requests */}
         {game.joinPolicy === "approval" && game.pendingRequests.length > 0 ? (
