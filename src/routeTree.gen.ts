@@ -25,6 +25,7 @@ import { Route as InviteRouteImport } from './routes/invite'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as QRouteImport } from './routes/q'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as VenuesRouteImport } from './routes/venues'
 import { Route as BookVenueIdRouteImport } from './routes/book.$venueId'
@@ -35,6 +36,8 @@ import { Route as GamesGameIdRouteImport } from './routes/games.$gameId'
 import { Route as GroupsIndexRouteImport } from './routes/groups.index'
 import { Route as GroupsGroupIdRouteImport } from './routes/groups.$groupId'
 import { Route as GroupsCreateRouteImport } from './routes/groups.create'
+import { Route as QIndexRouteImport } from './routes/q.index'
+import { Route as QCodeRouteImport } from './routes/q.$code'
 import { Route as RCodeRouteImport } from './routes/r.$code'
 import { Route as SupportIndexRouteImport } from './routes/support.index'
 import { Route as SupportTicketIdRouteImport } from './routes/support.$ticketId'
@@ -122,6 +125,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QRoute = QRouteImport.update({
+  id: '/q',
+  path: '/q',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -172,6 +180,16 @@ const GroupsCreateRoute = GroupsCreateRouteImport.update({
   path: '/create',
   getParentRoute: () => GroupsRoute,
 } as any)
+const QIndexRoute = QIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => QRoute,
+} as any)
+const QCodeRoute = QCodeRouteImport.update({
+  id: '/$code',
+  path: '/$code',
+  getParentRoute: () => QRoute,
+} as any)
 const RCodeRoute = RCodeRouteImport.update({
   id: '/r/$code',
   path: '/r/$code',
@@ -220,6 +238,7 @@ export interface FileRoutesByFullPath {
   '/notifications': typeof NotificationsRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/q': typeof QRouteWithChildren
   '/terms': typeof TermsRoute
   '/venues': typeof VenuesRouteWithChildren
   '/book/$venueId': typeof BookVenueIdRoute
@@ -227,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/games/$gameId': typeof GamesGameIdRoute
   '/groups/$groupId': typeof GroupsGroupIdRoute
   '/groups/create': typeof GroupsCreateRoute
+  '/q/$code': typeof QCodeRoute
   '/r/$code': typeof RCodeRoute
   '/support/$ticketId': typeof SupportTicketIdRoute
   '/venue-group/$venueId': typeof VenueGroupVenueIdRoute
@@ -234,6 +254,7 @@ export interface FileRoutesByFullPath {
   '/events/': typeof EventsIndexRoute
   '/games/': typeof GamesIndexRoute
   '/groups/': typeof GroupsIndexRoute
+  '/q/': typeof QIndexRoute
   '/support/': typeof SupportIndexRoute
   '/venues/': typeof VenuesIndexRoute
 }
@@ -257,6 +278,7 @@ export interface FileRoutesByTo {
   '/games/$gameId': typeof GamesGameIdRoute
   '/groups/$groupId': typeof GroupsGroupIdRoute
   '/groups/create': typeof GroupsCreateRoute
+  '/q/$code': typeof QCodeRoute
   '/r/$code': typeof RCodeRoute
   '/support/$ticketId': typeof SupportTicketIdRoute
   '/venue-group/$venueId': typeof VenueGroupVenueIdRoute
@@ -264,6 +286,7 @@ export interface FileRoutesByTo {
   '/events': typeof EventsIndexRoute
   '/games': typeof GamesIndexRoute
   '/groups': typeof GroupsIndexRoute
+  '/q': typeof QIndexRoute
   '/support': typeof SupportIndexRoute
   '/venues': typeof VenuesIndexRoute
 }
@@ -285,6 +308,7 @@ export interface FileRoutesById {
   '/notifications': typeof NotificationsRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/q': typeof QRouteWithChildren
   '/terms': typeof TermsRoute
   '/venues': typeof VenuesRouteWithChildren
   '/book/$venueId': typeof BookVenueIdRoute
@@ -292,6 +316,7 @@ export interface FileRoutesById {
   '/games/$gameId': typeof GamesGameIdRoute
   '/groups/$groupId': typeof GroupsGroupIdRoute
   '/groups/create': typeof GroupsCreateRoute
+  '/q/$code': typeof QCodeRoute
   '/r/$code': typeof RCodeRoute
   '/support/$ticketId': typeof SupportTicketIdRoute
   '/venue-group/$venueId': typeof VenueGroupVenueIdRoute
@@ -299,6 +324,7 @@ export interface FileRoutesById {
   '/events/': typeof EventsIndexRoute
   '/games/': typeof GamesIndexRoute
   '/groups/': typeof GroupsIndexRoute
+  '/q/': typeof QIndexRoute
   '/support/': typeof SupportIndexRoute
   '/venues/': typeof VenuesIndexRoute
 }
@@ -321,6 +347,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/privacy'
     | '/profile'
+    | '/q'
     | '/terms'
     | '/venues'
     | '/book/$venueId'
@@ -328,6 +355,7 @@ export interface FileRouteTypes {
     | '/games/$gameId'
     | '/groups/$groupId'
     | '/groups/create'
+    | '/q/$code'
     | '/r/$code'
     | '/support/$ticketId'
     | '/venue-group/$venueId'
@@ -335,6 +363,7 @@ export interface FileRouteTypes {
     | '/events/'
     | '/games/'
     | '/groups/'
+    | '/q/'
     | '/support/'
     | '/venues/'
   fileRoutesByTo: FileRoutesByTo
@@ -358,6 +387,7 @@ export interface FileRouteTypes {
     | '/games/$gameId'
     | '/groups/$groupId'
     | '/groups/create'
+    | '/q/$code'
     | '/r/$code'
     | '/support/$ticketId'
     | '/venue-group/$venueId'
@@ -365,6 +395,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/games'
     | '/groups'
+    | '/q'
     | '/support'
     | '/venues'
   id:
@@ -385,6 +416,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/privacy'
     | '/profile'
+    | '/q'
     | '/terms'
     | '/venues'
     | '/book/$venueId'
@@ -392,6 +424,7 @@ export interface FileRouteTypes {
     | '/games/$gameId'
     | '/groups/$groupId'
     | '/groups/create'
+    | '/q/$code'
     | '/r/$code'
     | '/support/$ticketId'
     | '/venue-group/$venueId'
@@ -399,6 +432,7 @@ export interface FileRouteTypes {
     | '/events/'
     | '/games/'
     | '/groups/'
+    | '/q/'
     | '/support/'
     | '/venues/'
   fileRoutesById: FileRoutesById
@@ -420,6 +454,7 @@ export interface RootRouteChildren {
   NotificationsRoute: typeof NotificationsRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
+  QRoute: typeof QRouteWithChildren
   TermsRoute: typeof TermsRoute
   VenuesRoute: typeof VenuesRouteWithChildren
   BookVenueIdRoute: typeof BookVenueIdRoute
@@ -543,6 +578,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/q': {
+      id: '/q'
+      path: '/q'
+      fullPath: '/q'
+      preLoaderRoute: typeof QRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -612,6 +654,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/groups/create'
       preLoaderRoute: typeof GroupsCreateRouteImport
       parentRoute: typeof GroupsRoute
+    }
+    '/q/': {
+      id: '/q/'
+      path: '/'
+      fullPath: '/q/'
+      preLoaderRoute: typeof QIndexRouteImport
+      parentRoute: typeof QRoute
+    }
+    '/q/$code': {
+      id: '/q/$code'
+      path: '/$code'
+      fullPath: '/q/$code'
+      preLoaderRoute: typeof QCodeRouteImport
+      parentRoute: typeof QRoute
     }
     '/r/$code': {
       id: '/r/$code'
@@ -698,6 +754,18 @@ const GroupsRouteChildren: GroupsRouteChildren = {
 const GroupsRouteWithChildren =
   GroupsRoute._addFileChildren(GroupsRouteChildren)
 
+interface QRouteChildren {
+  QCodeRoute: typeof QCodeRoute
+  QIndexRoute: typeof QIndexRoute
+}
+
+const QRouteChildren: QRouteChildren = {
+  QCodeRoute: QCodeRoute,
+  QIndexRoute: QIndexRoute,
+}
+
+const QRouteWithChildren = QRoute._addFileChildren(QRouteChildren)
+
 interface VenuesRouteChildren {
   VenuesVenueIdRoute: typeof VenuesVenueIdRoute
   VenuesIndexRoute: typeof VenuesIndexRoute
@@ -728,6 +796,7 @@ const rootRouteChildren: RootRouteChildren = {
   NotificationsRoute: NotificationsRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
+  QRoute: QRouteWithChildren,
   TermsRoute: TermsRoute,
   VenuesRoute: VenuesRouteWithChildren,
   BookVenueIdRoute: BookVenueIdRoute,
