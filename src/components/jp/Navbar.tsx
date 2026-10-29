@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { LifeBuoy, Bell, Menu, X, MapPin, CalendarCheck, User, Wallet, LogOut } from "lucide-react";
 import { Button } from "./Button";
 import { useAuth } from "@/lib/auth";
@@ -18,9 +18,19 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { user, isAuthenticated, hydrated, logout } = useAuth();
   const { balance } = useWallet();
   const { unreadCount } = useNotifications();
+
+  // Mobile menu closes on: navigation, Escape, and a tap anywhere outside it (see backdrop below).
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   const initials = (user?.name ?? "")
     .split(" ")
@@ -117,6 +127,14 @@ export function Navbar() {
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </nav>
+
+      {open ? (
+        <div
+          aria-hidden="true"
+          onClick={() => setOpen(false)}
+          className="absolute inset-x-0 top-full -z-10 h-screen bg-ink/40 backdrop-blur-[1px] md:hidden"
+        />
+      ) : null}
 
       {open ? (
         <div className="border-t border-border bg-background px-4 pb-5 pt-3 md:hidden">
