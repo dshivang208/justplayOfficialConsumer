@@ -77,7 +77,7 @@ export function HostedGamesSection() {
       {isLoading ? (
         <div className="-mx-4 flex gap-3 overflow-hidden px-4">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-44 w-[260px] shrink-0 animate-pulse rounded-xl bg-muted" />
+            <div key={i} className="h-44 w-[300px] shrink-0 animate-pulse rounded-xl bg-muted" />
           ))}
         </div>
       ) : upcoming.length === 0 ? (
@@ -97,7 +97,7 @@ export function HostedGamesSection() {
             <GameCard
               key={g.id}
               view="compact"
-              className="w-[260px] shrink-0 snap-start sm:w-[280px]"
+              className="w-[300px] shrink-0 snap-start sm:w-[330px]"
               game={g}
               joined={joinedGameIds.includes(g.id)}
               requested={requestedGameIds.includes(g.id)}
