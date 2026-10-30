@@ -213,6 +213,16 @@ export function GameCard({
           <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
           <span className="truncate">{gameTimeLabel(game)}</span>
         </p>
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-bold text-foreground">
+            {game.hostInitials}
+          </span>
+          <p className="min-w-0 truncate text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              {game.isMine ? "Hosted by you" : `Hosted by ${game.hostName}`}
+            </span>
+          </p>
+        </div>
         <div>
           <div className="mb-1.5 flex items-center justify-between text-[11px]">
             <span className="inline-flex items-center gap-1 font-semibold text-foreground">

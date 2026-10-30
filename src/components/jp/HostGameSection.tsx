@@ -1,9 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { CalendarCheck, Share2, Users2 } from "lucide-react";
-import { featuredHostedGame } from "@/data/landing";
 import { Section } from "./SectionHeading";
 import { Button } from "./Button";
-import { HostedGameCard } from "./HostedGameCard";
 
 const steps = [
   {
@@ -26,7 +24,7 @@ const steps = [
 export function HostGameSection() {
   return (
     <Section id="host">
-      <div className="grid items-center gap-10 lg:grid-cols-2">
+      <div className="mx-auto max-w-2xl">
         <div>
           <span className="mb-2 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">
             <span className="h-px w-6 bg-primary" /> Host a Game
@@ -60,13 +58,6 @@ export function HostGameSection() {
           </Button>
         </div>
 
-        <div className="relative">
-          <div className="absolute -inset-2 -z-10 rounded-full bg-primary/10 blur-3xl sm:-inset-6" />
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            Example hosted game
-          </p>
-          <HostedGameCard game={featuredHostedGame} />
-        </div>
       </div>
     </Section>
   );
