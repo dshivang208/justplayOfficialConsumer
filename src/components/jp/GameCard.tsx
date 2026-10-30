@@ -17,7 +17,7 @@ export function GameCard({
   className,
   view = "grid",
 }: {
-  view?: "grid" | "list";
+  view?: "grid" | "list" | "compact";
   game: Game;
   joined?: boolean;
   requested?: boolean;
@@ -175,6 +175,59 @@ export function GameCard({
 
         {/* Right: price + action, always beside the info */}
         <div className="flex shrink-0 flex-col items-end gap-2 sm:w-40 sm:justify-center">
+          <span className="text-sm font-bold text-foreground">{priceLabel}</span>
+          {action}
+        </div>
+      </article>
+    );
+  }
+
+  if (view === "compact") {
+    return (
+      <article
+        {...cardProps}
+        className={cn(
+          "surface-card flex cursor-pointer flex-col gap-2 rounded-xl p-3 transition-colors hover:border-primary/60",
+          (cancelled || past) && "opacity-60",
+          className,
+        )}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <SportTag sport={game.sport} />
+          <span className="shrink-0 rounded-md border border-border px-2 py-0.5 text-[10px] font-semibold text-accent">
+            {cancelled ? "Cancelled" : past ? "Game over" : relativeDayLabel(game.dateISO)}
+          </span>
+        </div>
+        <div className="min-w-0">
+          <h3 className="truncate text-base leading-tight">
+            <Link to="/games/$gameId" params={{ gameId: game.id }} className="hover:text-primary">
+              {game.venueName}
+            </Link>
+          </h3>
+          <p className="mt-0.5 inline-flex max-w-full items-center gap-1 text-[11px] text-muted-foreground">
+            <MapPin className="h-3 w-3 shrink-0" />
+            <span className="truncate">{game.area}</span>
+          </p>
+        </div>
+        <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span className="truncate">{gameTimeLabel(game)}</span>
+        </p>
+        <div>
+          <div className="mb-1.5 flex items-center justify-between text-[11px]">
+            <span className="inline-flex items-center gap-1 font-semibold text-foreground">
+              <Users className="h-3 w-3 text-primary" />
+              {filled}/{game.spotsTotal}
+            </span>
+            <span className={spotsLeft <= 2 ? "font-bold text-accent" : "text-muted-foreground"}>
+              {spotsLeft > 0 ? `${spotsLeft} left` : "Full"}
+            </span>
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+            <div className="gradient-primary h-full rounded-full" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+        <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-2">
           <span className="text-sm font-bold text-foreground">{priceLabel}</span>
           {action}
         </div>

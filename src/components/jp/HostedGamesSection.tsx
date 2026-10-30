@@ -8,7 +8,7 @@ import { Section, SectionHeading } from "./SectionHeading";
 import { GameCard } from "./GameCard";
 import { ManageGameModal } from "./ManageGameModal";
 import { Button } from "./Button";
-import { SkeletonGrid, EmptyState } from "./states";
+import { EmptyState } from "./states";
 
 export function HostedGamesSection() {
   const navigate = useNavigate();
@@ -32,7 +32,7 @@ export function HostedGamesSection() {
   // Real, live hosted games only — soonest first, capped to a homepage
   // preview. No demo/mock rows here; "See all games" links to /games for
   // the full, filterable list.
-  const upcoming = games.filter((g) => g.status === "active").slice(0, 4);
+  const upcoming = games.filter((g) => g.status === "active").slice(0, 10);
 
   const isLoading = loading && !hydrated;
 
@@ -75,7 +75,11 @@ export function HostedGamesSection() {
       />
 
       {isLoading ? (
-        <SkeletonGrid count={4} className="lg:grid-cols-2 xl:grid-cols-2" />
+        <div className="-mx-4 flex gap-3 overflow-hidden px-4">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-44 w-[260px] shrink-0 animate-pulse rounded-xl bg-muted" />
+          ))}
+        </div>
       ) : upcoming.length === 0 ? (
         <EmptyState
           icon={<Users className="h-8 w-8" />}
@@ -88,10 +92,12 @@ export function HostedGamesSection() {
           }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 pb-3 [scrollbar-width:thin] sm:mx-0 sm:px-0">
           {upcoming.map((g) => (
             <GameCard
               key={g.id}
+              view="compact"
+              className="w-[260px] shrink-0 snap-start sm:w-[280px]"
               game={g}
               joined={joinedGameIds.includes(g.id)}
               requested={requestedGameIds.includes(g.id)}
