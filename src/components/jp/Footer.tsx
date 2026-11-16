@@ -2,6 +2,9 @@ import { Link } from "@tanstack/react-router";
 import { Instagram, Mail, MapPin, Phone } from "lucide-react";
 import { cities } from "@/data/landing";
 
+// Partner (venue-owner) app. Set VITE_PARTNER_URL in your host's env vars.
+const PARTNER_URL = (import.meta.env.VITE_PARTNER_URL as string | undefined) || "#";
+
 export function Footer() {
   return (
     <footer className="border-t border-border bg-surface/40">
@@ -45,7 +48,12 @@ export function Footer() {
               </Link>
             </li>
             <li>
-              <a href="#" className="hover:text-primary">
+              <a
+                href={PARTNER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-primary"
+              >
                 List your venue
               </a>
             </li>
