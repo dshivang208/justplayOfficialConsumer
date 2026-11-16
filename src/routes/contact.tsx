@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Mail, MapPin, Phone } from "lucide-react";
-import { PageShell, PageHeader } from "@/components/jp/PageShell";
+import { Clock, Mail, MapPin, Phone } from "lucide-react";
+import { PageShell } from "@/components/jp/PageShell";
+import heroImg from "@/assets/group-badminton.jpg";
+import venueImg from "@/assets/venue-tennis.jpg";
 import { Button } from "@/components/jp/Button";
 import {
   Accordion,
@@ -105,15 +107,31 @@ function ContactPage() {
 
   return (
     <PageShell>
-      <PageHeader
-        eyebrow="Get in touch"
-        title="Contact Us"
-        subtitle="Questions, feedback, or a venue you'd like to see on JustPlay — we'd love to hear from you."
-      />
+      <section className="relative isolate overflow-hidden">
+        <img
+          src={heroImg}
+          alt="Friends playing badminton"
+          className="absolute inset-0 -z-10 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-ink/70 via-ink/60 to-ink/85" />
+        <div className="mx-auto w-full max-w-6xl px-4 pb-24 pt-14 sm:px-6 md:pb-28 md:pt-20">
+          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-on-image-muted">
+            <span className="h-px w-6 bg-on-image-muted" /> Get in touch
+          </span>
+          <h1 className="mt-4 text-5xl leading-[0.95] text-on-image sm:text-6xl">
+            Let's <span className="text-primary">talk</span>
+          </h1>
+          <p className="mt-4 max-w-xl text-base text-on-image-muted sm:text-lg">
+            Questions, feedback, or a venue you'd like to see on JustPlay — we'd love to hear from
+            you.
+          </p>
+        </div>
+      </section>
 
-      <div className="mx-auto grid w-full max-w-5xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.2fr_1fr]">
-        <section>
+      <div className="relative z-10 mx-auto -mt-12 grid w-full max-w-6xl gap-10 px-4 pb-16 sm:px-6 lg:grid-cols-[1.2fr_1fr]">
+        <section className="surface-card h-fit rounded-3xl bg-background p-5 shadow-lg sm:p-7">
           <h2 className="text-2xl leading-none">Send us a message</h2>
+          <p className="mt-1.5 text-sm text-muted-foreground">We usually reply within 1–2 business days.</p>
 
           {submitted ? (
             <div className="surface-card mt-5 rounded-2xl p-6 text-center">
@@ -198,30 +216,34 @@ function ContactPage() {
           )}
         </section>
 
-        <section>
-          <h2 className="text-2xl leading-none">Reach us directly</h2>
+        <section className="lg:pt-16">
+          <img
+            src={venueImg}
+            alt="A tennis court in Kanpur"
+            loading="lazy"
+            className="aspect-[16/9] w-full rounded-2xl object-cover shadow-md"
+          />
+          <h2 className="mt-8 text-2xl leading-none">Reach us directly</h2>
           <div className="mt-5 space-y-3">
-            <div className="surface-card flex items-center gap-3 rounded-xl p-4">
-              <Mail className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Email</p>
-                <p className="text-sm font-semibold">support@justplay.in</p>
+            {[
+              { icon: Mail, label: "Email", value: "support@justplay.in" },
+              { icon: Phone, label: "Phone", value: "+91 00000 00000" },
+              { icon: MapPin, label: "Based in", value: "Kanpur, Uttar Pradesh, India" },
+              { icon: Clock, label: "Response time", value: "Within 1–2 business days" },
+            ].map((c) => (
+              <div
+                key={c.label}
+                className="surface-card flex items-center gap-3 rounded-xl p-4 transition-colors hover:border-primary/60"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                  <c.icon className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-xs text-muted-foreground">{c.label}</p>
+                  <p className="text-sm font-semibold">{c.value}</p>
+                </div>
               </div>
-            </div>
-            <div className="surface-card flex items-center gap-3 rounded-xl p-4">
-              <Phone className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Phone</p>
-                <p className="text-sm font-semibold">+91 00000 00000</p>
-              </div>
-            </div>
-            <div className="surface-card flex items-center gap-3 rounded-xl p-4">
-              <MapPin className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Based in</p>
-                <p className="text-sm font-semibold">Kanpur, Uttar Pradesh, India</p>
-              </div>
-            </div>
+            ))}
           </div>
 
           <h2 className="mt-10 text-2xl leading-none">Frequently asked questions</h2>
