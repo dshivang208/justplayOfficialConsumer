@@ -119,7 +119,7 @@ function ContactPage() {
             <span className="h-px w-6 bg-on-image-muted" /> Get in touch
           </span>
           <h1 className="mt-4 text-5xl leading-[0.95] text-on-image sm:text-6xl">
-            Let's <span className="text-primary">talk</span>
+            Let's <span className="text-[#4dbf74]">talk</span>
           </h1>
           <p className="mt-4 max-w-xl text-base text-on-image-muted sm:text-lg">
             Questions, feedback, or a venue you'd like to see on JustPlay — we'd love to hear from

@@ -67,7 +67,7 @@ function AboutPage() {
             <span className="h-px w-6 bg-on-image-muted" /> About JustPlay
           </span>
           <h1 className="mt-4 max-w-3xl text-5xl leading-[0.95] text-on-image sm:text-6xl md:text-7xl">
-            Kanpur ka apna <span className="text-primary">sports network</span>
+            Kanpur ka apna <span className="text-[#4dbf74]">sports network</span>
           </h1>
           <p className="mt-5 max-w-xl text-base text-on-image-muted sm:text-lg">
             We're building the easiest way for Kanpur to book a venue, fill a game, and find

@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { PageShell, PageHeader } from "@/components/jp/PageShell";
-import { LegalPlaceholderNotice, LegalSection } from "@/components/jp/LegalPage";
+import { PageShell } from "@/components/jp/PageShell";
+import { PageHero } from "@/components/jp/PageHero";
+import heroImg from "@/assets/venue-badminton.jpg";
+import { LegalFooterLinks, LegalPlaceholderNotice, LegalSection } from "@/components/jp/LegalPage";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -18,12 +20,12 @@ export const Route = createFileRoute("/privacy")({
 function PrivacyPage() {
   return (
     <PageShell>
-      <PageHeader eyebrow="Legal" title="Privacy Policy" subtitle="Last updated: September 2026" />
+      <PageHero image={heroImg} eyebrow="Legal" title={<>Privacy <span className="text-[#4dbf74]">Policy</span></>} subtitle="Last updated: September 2026" />
 
-      <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
+      <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 md:py-14">
         <LegalPlaceholderNotice />
 
-        <p className="mt-8 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
+        <p className="my-8 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
           This Privacy Policy explains how JustPlay Sports Pvt. Ltd. ("JustPlay", "we", "us", or
           "our") collects, uses, discloses, and safeguards your information when you use our website
           and mobile application (together, the "Platform") to book sports venues, host or join
@@ -170,6 +172,8 @@ function PrivacyPage() {
             <span className="font-semibold text-foreground">privacy@justplay.in</span>.
           </p>
         </LegalSection>
+
+        <LegalFooterLinks current="privacy" />
       </div>
     </PageShell>
   );

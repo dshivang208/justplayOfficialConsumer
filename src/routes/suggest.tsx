@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Lightbulb } from "lucide-react";
-import { PageShell, PageHeader } from "@/components/jp/PageShell";
+import { Lightbulb, MessageSquareHeart, Rocket, Eye } from "lucide-react";
+import { PageShell } from "@/components/jp/PageShell";
+import { PageHero } from "@/components/jp/PageHero";
+import heroImg from "@/assets/group-cricket.jpg";
+import sideImg from "@/assets/event-tournament.jpg";
 import { Button } from "@/components/jp/Button";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/lib/auth";
@@ -74,14 +77,21 @@ function SuggestPage() {
 
   return (
     <PageShell>
-      <PageHeader
+      <PageHero
+        image={heroImg}
         eyebrow="Your voice"
-        title="Suggest a Feature"
+        title={
+          <>
+            Suggest a <span className="text-[#4dbf74]">feature</span>
+          </>
+        }
         subtitle="Something missing? Something annoying? Tell us — we read every suggestion."
+        overlap
       />
-      <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6">
+      <div className="relative z-10 mx-auto -mt-12 grid w-full max-w-6xl items-start gap-8 px-4 pb-16 sm:px-6 lg:grid-cols-[1.3fr_1fr]">
+        <div>
         {submitted ? (
-          <div className="surface-card rounded-2xl p-8 text-center">
+          <div className="surface-card rounded-3xl bg-background p-8 text-center shadow-lg">
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
               <Lightbulb className="h-6 w-6" />
             </span>
@@ -100,7 +110,7 @@ function SuggestPage() {
           </div>
         ) : (
           <form
-            className="surface-card space-y-5 rounded-2xl p-5 sm:p-6"
+            className="surface-card space-y-5 rounded-3xl bg-background p-5 shadow-lg sm:p-7"
             onSubmit={(e) => {
               e.preventDefault();
               void submit();
@@ -179,6 +189,31 @@ function SuggestPage() {
             </Button>
           </form>
         )}
+        </div>
+
+        <aside className="space-y-4 lg:pt-16">
+          <img
+            src={sideImg}
+            alt="A local sports tournament"
+            loading="lazy"
+            className="aspect-[16/9] w-full rounded-2xl object-cover shadow-md"
+          />
+          {[
+            { icon: Eye, t: "We read everything", c: "Every suggestion lands in our team's inbox." },
+            { icon: Rocket, t: "Ideas that ship", c: "Popular requests move onto our roadmap." },
+            { icon: MessageSquareHeart, t: "Built with Kanpur", c: "JustPlay gets better because players speak up." },
+          ].map((x) => (
+            <div key={x.t} className="surface-card flex items-center gap-3 rounded-xl p-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <x.icon className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold">{x.t}</p>
+                <p className="text-xs text-muted-foreground">{x.c}</p>
+              </div>
+            </div>
+          ))}
+        </aside>
       </div>
     </PageShell>
   );

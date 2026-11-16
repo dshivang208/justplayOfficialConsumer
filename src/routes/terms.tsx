@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { PageShell, PageHeader } from "@/components/jp/PageShell";
-import { LegalPlaceholderNotice, LegalSection } from "@/components/jp/LegalPage";
+import { PageShell } from "@/components/jp/PageShell";
+import { PageHero } from "@/components/jp/PageHero";
+import heroImg from "@/assets/group-football.jpg";
+import { LegalFooterLinks, LegalPlaceholderNotice, LegalSection } from "@/components/jp/LegalPage";
 
 export const Route = createFileRoute("/terms")({
   head: () => ({
@@ -15,16 +17,12 @@ export const Route = createFileRoute("/terms")({
 function TermsPage() {
   return (
     <PageShell>
-      <PageHeader
-        eyebrow="Legal"
-        title="Terms & Conditions"
-        subtitle="Last updated: September 2026"
-      />
+      <PageHero image={heroImg} eyebrow="Legal" title={<>Terms &amp; <span className="text-[#4dbf74]">Conditions</span></>} subtitle="Last updated: September 2026" />
 
-      <div className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
+      <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 md:py-14">
         <LegalPlaceholderNotice />
 
-        <p className="mt-8 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
+        <p className="my-8 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
           These Terms & Conditions ("Terms") govern your access to and use of the JustPlay website
           and mobile application (the "Platform"), operated by JustPlay Sports Pvt. Ltd.
           ("JustPlay", "we", "us"). By creating an account or using the Platform, you agree to these
@@ -181,6 +179,8 @@ function TermsPage() {
             or to <span className="font-semibold text-foreground">legal@justplay.in</span>.
           </p>
         </LegalSection>
+
+        <LegalFooterLinks current="terms" />
       </div>
     </PageShell>
   );
