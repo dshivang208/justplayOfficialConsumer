@@ -3,7 +3,7 @@ import { Instagram, Mail, MapPin, Phone } from "lucide-react";
 import { cities } from "@/data/landing";
 
 // Partner (venue-owner) app. Set VITE_PARTNER_URL in your host's env vars.
-const PARTNER_URL = (import.meta.env.VITE_PARTNER_URL as string | undefined) || "#";
+const PARTNER_URL = (import.meta.env["VITE_PARTNER_URL"] as string | undefined) || "#";
 
 export function Footer() {
   return (
@@ -56,6 +56,11 @@ export function Footer() {
               >
                 List your venue
               </a>
+            </li>
+            <li>
+              <Link to="/suggest" className="hover:text-primary">
+                Suggest a feature
+              </Link>
             </li>
             <li>
               <Link to="/privacy" className="hover:text-primary">

@@ -26,6 +26,7 @@ import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as QRouteImport } from './routes/q'
+import { Route as SuggestRouteImport } from './routes/suggest'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as VenuesRouteImport } from './routes/venues'
 import { Route as BookVenueIdRouteImport } from './routes/book.$venueId'
@@ -128,6 +129,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const QRoute = QRouteImport.update({
   id: '/q',
   path: '/q',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuggestRoute = SuggestRouteImport.update({
+  id: '/suggest',
+  path: '/suggest',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -239,6 +245,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/q': typeof QRouteWithChildren
+  '/suggest': typeof SuggestRoute
   '/terms': typeof TermsRoute
   '/venues': typeof VenuesRouteWithChildren
   '/book/$venueId': typeof BookVenueIdRoute
@@ -272,6 +279,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof NotificationsRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
+  '/suggest': typeof SuggestRoute
   '/terms': typeof TermsRoute
   '/book/$venueId': typeof BookVenueIdRoute
   '/events/$eventId': typeof EventsEventIdRoute
@@ -309,6 +317,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/q': typeof QRouteWithChildren
+  '/suggest': typeof SuggestRoute
   '/terms': typeof TermsRoute
   '/venues': typeof VenuesRouteWithChildren
   '/book/$venueId': typeof BookVenueIdRoute
@@ -348,6 +357,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/q'
+    | '/suggest'
     | '/terms'
     | '/venues'
     | '/book/$venueId'
@@ -381,6 +391,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/privacy'
     | '/profile'
+    | '/suggest'
     | '/terms'
     | '/book/$venueId'
     | '/events/$eventId'
@@ -417,6 +428,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profile'
     | '/q'
+    | '/suggest'
     | '/terms'
     | '/venues'
     | '/book/$venueId'
@@ -455,6 +467,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   QRoute: typeof QRouteWithChildren
+  SuggestRoute: typeof SuggestRoute
   TermsRoute: typeof TermsRoute
   VenuesRoute: typeof VenuesRouteWithChildren
   BookVenueIdRoute: typeof BookVenueIdRoute
@@ -583,6 +596,13 @@ declare module '@tanstack/react-router' {
       path: '/q'
       fullPath: '/q'
       preLoaderRoute: typeof QRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/suggest': {
+      id: '/suggest'
+      path: '/suggest'
+      fullPath: '/suggest'
+      preLoaderRoute: typeof SuggestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -797,6 +817,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   QRoute: QRouteWithChildren,
+  SuggestRoute: SuggestRoute,
   TermsRoute: TermsRoute,
   VenuesRoute: VenuesRouteWithChildren,
   BookVenueIdRoute: BookVenueIdRoute,
