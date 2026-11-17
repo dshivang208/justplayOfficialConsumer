@@ -192,7 +192,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       await enablePushCore("consumer");
       setPushState("subscribed");
     } catch (e) {
-      const messageText = e instanceof Error ? e.message : "Could not enable push notifications.";
+      const messageText = e instanceof Error ? e.message : "Could not turn on notifications.";
       setPushError(messageText);
       if (Notification.permission === "denied") setPushState("denied");
       throw e instanceof Error ? e : new Error(messageText);

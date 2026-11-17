@@ -17,6 +17,7 @@ import { WalletProvider } from "../lib/wallet";
 import { ReferralCapture } from "../lib/referralProgram";
 import { PaymentMethodsProvider } from "../lib/paymentMethods";
 import { NotificationsProvider } from "../lib/notifications";
+import { NotificationPrompt } from "../components/jp/NotificationPrompt";
 import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
@@ -145,6 +146,7 @@ function RootComponent() {
                 {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
                 <Outlet />
               </CommunityProvider>
+              <NotificationPrompt />
               <Toaster position="top-center" richColors />
             </PaymentMethodsProvider>
           </NotificationsProvider>

@@ -251,7 +251,7 @@ export function NotificationPanel({
             onClick={() => void disablePush()}
             className="text-xs font-semibold text-muted-foreground hover:text-destructive"
           >
-            Turn off push notifications on this device
+            Turn off notifications on this device
           </button>
         ) : pushState === "unsupported" || pushState === "denied" ? (
           pushError ? <p className="text-xs text-muted-foreground">{pushError}</p> : null
@@ -261,12 +261,12 @@ export function NotificationPanel({
               type="button"
               onClick={() =>
                 enablePush().catch((e) => {
-                  toast.error(e instanceof Error ? e.message : "Could not enable push notifications.");
+                  toast.error(e instanceof Error ? e.message : "Could not turn on notifications.");
                 })
               }
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
             >
-              <BellRing className="h-3.5 w-3.5" /> Enable push notifications on this device
+              <BellRing className="h-3.5 w-3.5" /> Allow notifications
             </button>
             {pushError ? <p className="mt-1 text-xs text-destructive">{pushError}</p> : null}
           </>
