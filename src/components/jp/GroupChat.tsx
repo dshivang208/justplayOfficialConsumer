@@ -16,6 +16,7 @@ import {
   type GifResult,
 } from "@/lib/groupChat";
 import { EMOJI_GROUPS, STICKERS } from "./chat/emojiData";
+import { ReportButton } from "./ReportButton";
 
 /** Local-calendar-day key, so messages group by the viewer's own date. */
 function dayKey(iso: string) {
@@ -386,6 +387,7 @@ export function GroupChat({ groupId }: { groupId: string }) {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
+                      {!mine ? <ReportButton kind="group_message" contentId={m.id} className="ml-2 align-middle" /> : null}
                     </span>
                   </div>
                 </div>
