@@ -18,6 +18,8 @@ import { ReferralCapture } from "../lib/referralProgram";
 import { PaymentMethodsProvider } from "../lib/paymentMethods";
 import { NotificationsProvider } from "../lib/notifications";
 import { NotificationPrompt } from "../components/jp/NotificationPrompt";
+import { SiteSettingsProvider } from "../lib/siteSettings";
+import { SiteStatus } from "../components/jp/SiteStatus";
 import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
@@ -137,11 +139,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <SiteSettingsProvider>
       <AuthProvider>
         <WalletProvider>
           <NotificationsProvider>
             <ReferralCapture />
             <PaymentMethodsProvider>
+              <SiteStatus />
               <CommunityProvider>
                 {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
                 <Outlet />
@@ -152,6 +156,7 @@ function RootComponent() {
           </NotificationsProvider>
         </WalletProvider>
       </AuthProvider>
+      </SiteSettingsProvider>
     </QueryClientProvider>
   );
 }

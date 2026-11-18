@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 import { PageShell } from "@/components/jp/PageShell";
+import { useSiteSettings } from "@/lib/siteSettings";
 import heroImg from "@/assets/group-badminton.jpg";
 import venueImg from "@/assets/venue-tennis.jpg";
 import { Button } from "@/components/jp/Button";
@@ -55,6 +56,7 @@ const faqs = [
 ];
 
 function ContactPage() {
+  const site = useSiteSettings();
   const { user } = useAuth();
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
@@ -226,8 +228,8 @@ function ContactPage() {
           <h2 className="mt-8 text-2xl leading-none">Reach us directly</h2>
           <div className="mt-5 space-y-3">
             {[
-              { icon: Mail, label: "Email", value: "support@justplay.in" },
-              { icon: Phone, label: "Phone", value: "+91 00000 00000" },
+              ...(site.supportEmail ? [{ icon: Mail, label: "Email", value: site.supportEmail }] : []),
+              ...(site.supportPhone ? [{ icon: Phone, label: "Phone", value: site.supportPhone }] : []),
               { icon: MapPin, label: "Based in", value: "Kanpur, Uttar Pradesh, India" },
               { icon: Clock, label: "Response time", value: "Within 1–2 business days" },
             ].map((c) => (
