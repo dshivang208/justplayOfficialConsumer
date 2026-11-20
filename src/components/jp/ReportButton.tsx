@@ -17,7 +17,7 @@ export function ReportButton({
   contentId,
   className = "",
 }: {
-  kind: "group_message" | "game_question";
+  kind: "group_message" | "game_question" | "venue_group_message";
   contentId: string;
   className?: string;
 }) {

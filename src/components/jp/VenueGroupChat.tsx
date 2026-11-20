@@ -1,3 +1,4 @@
+import { ReportButton } from "./ReportButton";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -283,6 +284,7 @@ export function VenueGroupChat({
                           minute: "2-digit",
                         })}
                       </span>
+                      {!mine ? <ReportButton kind="venue_group_message" contentId={m.id} /> : null}
                       {mine ? (
                         <button
                           type="button"
